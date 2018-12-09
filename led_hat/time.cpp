@@ -6,6 +6,6 @@ void Time_SetTime(unsigned long t) {
 }
 
 unsigned long Time_GetTime() {
+    // Serial.print("Time is: "); Serial.println(millis() + offset);
     return millis() + offset;
-
 }
