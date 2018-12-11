@@ -3,8 +3,8 @@
 #include "time.h"
 
 #define LED_PIN     5
-#define NUM_LEDS    60
-#define BRIGHTNESS  64
+#define NUM_LEDS    150
+#define BRIGHTNESS  20
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
 CRGB leds[NUM_LEDS];
