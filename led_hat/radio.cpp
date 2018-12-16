@@ -1,132 +1,109 @@
-// Feather9x_RX
-// -*- mode: C++ -*-
-// Example sketch showing how to create a simple messaging client (receiver)
-// with the RH_RF95 class. RH_RF95 class does not provide for addressing or
-// reliability, so you should only use RH_RF95 if you do not need the higher
-// level messaging abilities.
-// It is designed to work with the other example Feather9x_TX
- 
+// Derives from https://github.com/HarringayMakerSpace/ESP-Now
 #include <Arduino.h>
-#include <SPI.h>
-#include <RH_RF95.h>
 #include "time.h"
- 
-// for Feather32u4 RFM9x
-#define RFM95_CS 8
-#define RFM95_RST 4
-#define RFM95_INT 7
- 
-// Change to 434.0 or other frequency, must match RX's freq!
-#define RF95_FREQ 868.0
- 
-// Singleton instance of the radio driver
-RH_RF95 rf95(RFM95_CS, RFM95_INT);
-
-unsigned long lastTimeSent = 0;
-bool isMaster = false;
- 
-// Blinky on receipt
-#define LED 13
-
-#define SENDING_PERIOD__ms 1000
-
-static void Radio_ResetModule() {
-  digitalWrite(RFM95_RST, LOW);
-  delay(10);
-  digitalWrite(RFM95_RST, HIGH);
-  delay(10);
+#include <ESP8266WiFi.h>
+extern "C" {
+    #include <espnow.h>
+     #include <user_interface.h>
 }
+#define WIFI_CHANNEL 4
 
-void Radio_Init()
-{
-  pinMode(LED, OUTPUT);
-  pinMode(RFM95_RST, OUTPUT);
-  digitalWrite(RFM95_RST, HIGH);
- 
-  delay(100); // TODO why?
- 
-  Serial.println("Feather LoRa RX Test!");
- 
-  Radio_ResetModule(); // TODO why?
- 
-  while (!rf95.init()) {
-    Serial.println("LoRa radio init failed");
-    while (1);
-  }
+// it seems that the mac address needs to be set before setup() is called
+//      and the inclusion of user_interface.h facilitates that
+//      presumably there is a hidden call to initVariant()
 
-  Serial.println("LoRa radio init OK!");
- 
-  if (!rf95.setFrequency(RF95_FREQ)) {
-    Serial.println("setFrequency failed");
-    while (1);
-  }
-  Serial.print("Set Freq to: "); Serial.println(RF95_FREQ);
- 
-  rf95.setTxPower(23, false);
-}
+// http://serverfault.com/questions/40712/what-range-of-mac-addresses-can-i-safely-use-for-my-virtual-machines
+uint8_t slaveMac[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x33};
 
-static unsigned long Radio_BytesToLong(uint8_t* buf, uint8_t len) {
-    unsigned long ret = 0;
-    for (uint8_t i = 0; i < len; i++) {
-        ret += ((unsigned long) buf[i]) << (i * 8);
-    }
-    return ret;
-}
+struct __attribute__((packed)) DataStruct {
+    char text[32];
+    unsigned int time;
+};
+DataStruct receivedData;
+DataStruct sendingData;
 
-// TODO statically require buf to be size 4?
-static void Radio_LongToBytes(unsigned long x, uint8_t* buf) {
-    for (uint8_t i = 0; i < 4; i++) {
-        buf[i] = (x >> (i * 8)) & 0xFF;
-    }
-}
+unsigned long lastSentMillis = 0;
+unsigned long sendIntervalMillis = 1000;
+bool isMaster = true;
 
- 
-static void Radio_SlaveUpdate()
-{
-  if (rf95.available())
-  {
-    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
-    uint8_t len = sizeof(buf);
- 
-    if (rf95.recv(buf, &len))
-    {
-        RH_RF95::printBuffer("Received: ", buf, len);
-        unsigned long time__ms = Radio_BytesToLong(buf, len);
-        Time_SetTime(time__ms);
-        Serial.print("Setting time: "); Serial.println(time__ms);
-    }
-    else
-    {
-      Serial.println("Receive failed");
-    }
+void initVariant() {
+  if (!isMaster) {
+    WiFi.mode(WIFI_AP);
+    wifi_set_macaddr(SOFTAP_IF, &slaveMac[0]);
   }
 }
 
-static void Radio_MasterUpdate() {
-  if (lastTimeSent + SENDING_PERIOD__ms > Time_GetTime()) {
-    return;
-  }
-  lastTimeSent = Time_GetTime();
+void sendData() {
+    if (Time_GetTime() - lastSentMillis >= sendIntervalMillis) {
+        lastSentMillis += sendIntervalMillis;
+        sendingData.time = Time_GetTime();
+        uint8_t byteArray[sizeof(sendingData)];
+        memcpy(byteArray, &sendingData, sizeof(sendingData));
+        esp_now_send(NULL, byteArray, sizeof(sendingData)); // NULL means send to all peers
+        Serial.println("Loop sent data");
+    }
+}
 
-  Serial.println("Transmitting...");
-  
-  uint8_t radiopacket[5];
-  Radio_LongToBytes(Time_GetTime(), radiopacket);
-  radiopacket[4] = 0; // TODO, is this needed?
+void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
+    Time_SetTime(receivedData.time);
+    memcpy(&receivedData, incomingData, sizeof(receivedData));
+    Serial.print("NewMsg ");
+    Serial.print("MacAddr ");
+    for (byte n = 0; n < 6; n++) {
+        Serial.print(senderMac[n], HEX);
+    }
+    Serial.print("  MsgLen ");
+    Serial.print(len);
+    Serial.print("  Text ");
+    Serial.print(receivedData.text);
+    Serial.print("  Time ");
+    Serial.print(receivedData.time);
+    Serial.println();
+}
 
-  RH_RF95::printBuffer("Sending: ", radiopacket, 5);
-  delay(10); // TODO, is this needed?
-  rf95.send(radiopacket, 5);
+void Radio_master_setup() {
+    Serial.println("Starting Master");
 
-  Serial.println("Waiting for packet to complete..."); 
-  delay(10); // TODO, is this needed?
-  rf95.waitPacketSent();
+    WiFi.mode(WIFI_STA); // Station mode for esp-now controller
+    WiFi.disconnect();
+
+    Serial.printf("This mac: %s, ", WiFi.macAddress().c_str());
+    Serial.printf("target mac: %02x%02x%02x%02x%02x%02x", slaveMac[0], slaveMac[1], slaveMac[2], slaveMac[3], slaveMac[4], slaveMac[5]);
+    Serial.printf(", channel: %i\n", WIFI_CHANNEL);
+
+    esp_now_add_peer(slaveMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
+
+    Serial.println("Setup finished");
+}
+
+void Radio_slave_setup() {
+    Serial.println("Starting Slave");
+
+    Serial.print("This AP mac: "); Serial.println(WiFi.softAPmacAddress());
+    Serial.print("This STA mac: "); Serial.println(WiFi.macAddress());
+
+    esp_now_register_recv_cb(receiveCallBackFunction);
+    Serial.println("End of setup - waiting for messages");
 }
 
 void Radio_Update() {
+  if (isMaster) {
+    sendData();
+  }
+}
+
+void Radio_Init() {
+    Serial.begin(115200);
+    if (esp_now_init()!=0) {
+        Serial.println("*** ESP_Now init failed");
+        while(true) {};
+    }
+    // role set to COMBO so it can send and receive - not sure this is essential
+    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
+
     if (isMaster) {
-        Radio_MasterUpdate();
+      Radio_master_setup();
     } else {
-        Radio_SlaveUpdate();
+      Radio_slave_setup();
     }
 }
