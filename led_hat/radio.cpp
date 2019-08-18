@@ -3,8 +3,8 @@
 #include "time.h"
 #include <ESP8266WiFi.h>
 extern "C" {
-    #include <espnow.h>
-     #include <user_interface.h>
+#include <espnow.h>
+#include <user_interface.h>
 }
 #define WIFI_CHANNEL 4
 
@@ -15,8 +15,8 @@ extern "C" {
 uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 struct __attribute__((packed)) DataStruct {
-    char text[32];
-    unsigned int time;
+  char text[32];
+  unsigned int time;
 };
 DataStruct receivedData;
 DataStruct sendingData;
@@ -33,48 +33,48 @@ void initVariant() {
 }
 
 void sendData() {
-    sendingData.time = Time_GetTime();
-    uint8_t byteArray[sizeof(sendingData)];
-    memcpy(byteArray, &sendingData, sizeof(sendingData));
-    esp_now_send(broadcastMac, byteArray, sizeof(sendingData)); // NULL means send to all peers
-    Serial.println("Loop sent data");
+  sendingData.time = Time_GetTime();
+  uint8_t byteArray[sizeof(sendingData)];
+  memcpy(byteArray, &sendingData, sizeof(sendingData));
+  esp_now_send(broadcastMac, byteArray, sizeof(sendingData)); // NULL means send to all peers
+  Serial.println("Loop sent data");
 }
 
 void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
-    if (!friendFound) {
-      friendFound = true;
-      friendNewlyFound = true;
-      quickRespond = true;
-    }
-    lastSeenFriendTime = millis();
-    memcpy(&receivedData, incomingData, sizeof(receivedData));
-    if (abs(Time_GetTime() - receivedData.time) > 100) {
-      quickRespond = true;
-    }
-    unsigned long avg = (Time_GetTime() + receivedData.time) / 2;
+  if (!friendFound) {
+    friendFound = true;
+    friendNewlyFound = true;
+    quickRespond = true;
+  }
+  lastSeenFriendTime = millis();
+  memcpy(&receivedData, incomingData, sizeof(receivedData));
+  if (abs(Time_GetTime() - receivedData.time) > 100) {
+    quickRespond = true;
+  }
+  unsigned long avg = (Time_GetTime() + receivedData.time) / 2;
 
-    Serial.print("Old time ");
-    Serial.print(Time_GetTime());
-    Serial.print(" New time ");
-    Serial.print(receivedData.time);
-    Serial.print(" Avg ");
-    Serial.print(avg);
-    Serial.println();
+  Serial.print("Old time ");
+  Serial.print(Time_GetTime());
+  Serial.print(" New time ");
+  Serial.print(receivedData.time);
+  Serial.print(" Avg ");
+  Serial.print(avg);
+  Serial.println();
 
-    Time_SetTime(avg);
+  Time_SetTime(avg);
 
-    Serial.print("NewMsg ");
-    Serial.print("MacAddr ");
-    for (byte n = 0; n < 6; n++) {
-        Serial.print(senderMac[n], HEX);
-    }
-    Serial.print("  MsgLen ");
-    Serial.print(len);
-    Serial.print("  Text ");
-    Serial.print(receivedData.text);
-    Serial.print("  Time ");
-    Serial.print(receivedData.time);
-    Serial.println();
+  Serial.print("NewMsg ");
+  Serial.print("MacAddr ");
+  for (byte n = 0; n < 6; n++) {
+    Serial.print(senderMac[n], HEX);
+  }
+  Serial.print("  MsgLen ");
+  Serial.print(len);
+  Serial.print("  Text ");
+  Serial.print(receivedData.text);
+  Serial.print("  Time ");
+  Serial.print(receivedData.time);
+  Serial.println();
 }
 
 void Radio_Update() {
@@ -97,26 +97,26 @@ void Radio_Update() {
 }
 
 void Radio_Init() {
-    Serial.begin(115200);
-    if (esp_now_init()!=0) {
-        Serial.println("*** ESP_Now init failed");
-        while(true) {};
-    }
-    // role set to COMBO so it can send and receive - not sure this is essential
-    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
+  Serial.begin(115200);
+  if (esp_now_init()!=0) {
+    Serial.println("*** ESP_Now init failed");
+    while(true) {};
+  }
+  // role set to COMBO so it can send and receive - not sure this is essential
+  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
 
-    Serial.println("Starting Master");
+  Serial.println("Starting Master");
 
-    WiFi.mode(WIFI_STA); // Station mode for esp-now controller
-    WiFi.disconnect();
+  WiFi.mode(WIFI_STA); // Station mode for esp-now controller
+  WiFi.disconnect();
 
-    Serial.printf("This mac: %s, ", WiFi.macAddress().c_str());
-    Serial.printf("target mac: %02x%02x%02x%02x%02x%02x", broadcastMac[0], broadcastMac[1], broadcastMac[2], broadcastMac[3], broadcastMac[4], broadcastMac[5]);
-    Serial.printf(", channel: %i\n", WIFI_CHANNEL);
+  Serial.printf("This mac: %s, ", WiFi.macAddress().c_str());
+  Serial.printf("target mac: %02x%02x%02x%02x%02x%02x", broadcastMac[0], broadcastMac[1], broadcastMac[2], broadcastMac[3], broadcastMac[4], broadcastMac[5]);
+  Serial.printf(", channel: %i\n", WIFI_CHANNEL);
 
-    esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
+  esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
 
-    Serial.println("Setup finished");
+  Serial.println("Setup finished");
 
-    esp_now_register_recv_cb(receiveCallBackFunction);
+  esp_now_register_recv_cb(receiveCallBackFunction);
 }
