@@ -16,7 +16,7 @@ void setup() {
     Radio_Init();
     LED_Init();
     Serial.begin(115200);
-//   waitForSerial();
+   waitForSerial();
 }
 
 void loop() {

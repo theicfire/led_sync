@@ -13,7 +13,7 @@ extern "C" {
 //      presumably there is a hidden call to initVariant()
 
 // http://serverfault.com/questions/40712/what-range-of-mac-addresses-can-i-safely-use-for-my-virtual-machines
-uint8_t slaveMac[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x33};
+uint8_t slaveMac[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x34};
 
 struct __attribute__((packed)) DataStruct {
     char text[32];
@@ -24,7 +24,7 @@ DataStruct sendingData;
 
 unsigned long lastSentMillis = 0;
 unsigned long sendIntervalMillis = 1000;
-bool isMaster = true;
+bool isMaster = false;
 
 void initVariant() {
   if (!isMaster) {
@@ -45,8 +45,8 @@ void sendData() {
 }
 
 void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
-    Time_SetTime(receivedData.time);
     memcpy(&receivedData, incomingData, sizeof(receivedData));
+    Time_SetTime(receivedData.time);
     Serial.print("NewMsg ");
     Serial.print("MacAddr ");
     for (byte n = 0; n < 6; n++) {
