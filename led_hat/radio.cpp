@@ -108,7 +108,6 @@ void Radio_Init() {
   Serial.println("Starting Master");
 
   WiFi.mode(WIFI_STA); // Station mode for esp-now controller
-  WiFi.disconnect();
 
   Serial.printf("This mac: %s, ", WiFi.macAddress().c_str());
   Serial.printf("target mac: %02x%02x%02x%02x%02x%02x", broadcastMac[0], broadcastMac[1], broadcastMac[2], broadcastMac[3], broadcastMac[4], broadcastMac[5]);
