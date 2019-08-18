@@ -12,9 +12,7 @@ extern "C" {
 //      and the inclusion of user_interface.h facilitates that
 //      presumably there is a hidden call to initVariant()
 
-// http://serverfault.com/questions/40712/what-range-of-mac-addresses-can-i-safely-use-for-my-virtual-machines
-//uint8_t slaveMac[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x33};
-uint8_t slaveMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 struct __attribute__((packed)) DataStruct {
     char text[32];
@@ -24,25 +22,29 @@ DataStruct receivedData;
 DataStruct sendingData;
 
 unsigned long lastSentMillis = 0;
-unsigned long sendIntervalMillis = 1000;
+unsigned long sendIntervalMillis = 3000;
+bool friendFound = false;
+bool friendNewlyFound = false;
+unsigned long friendTimeout = 5000;
+unsigned long lastSeenFriendTime = 0;
 
 void initVariant() {
-  //wifi_set_macaddr(SOFTAP_IF, &slaveMac[0]);
 }
 
 void sendData() {
-    if (Time_GetTime() > sendIntervalMillis && Time_GetTime() - lastSentMillis >= sendIntervalMillis) {
-        //lastSentMillis += sendIntervalMillis;
-        lastSentMillis = Time_GetTime();
-        sendingData.time = Time_GetTime();
-        uint8_t byteArray[sizeof(sendingData)];
-        memcpy(byteArray, &sendingData, sizeof(sendingData));
-        esp_now_send(slaveMac, byteArray, sizeof(sendingData)); // NULL means send to all peers
-        Serial.println("Loop sent data");
-    }
+    sendingData.time = Time_GetTime();
+    uint8_t byteArray[sizeof(sendingData)];
+    memcpy(byteArray, &sendingData, sizeof(sendingData));
+    esp_now_send(broadcastMac, byteArray, sizeof(sendingData)); // NULL means send to all peers
+    Serial.println("Loop sent data");
 }
 
 void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
+    if (!friendFound) {
+      friendFound = true;
+      friendNewlyFound = true;
+    }
+    lastSeenFriendTime = millis();
     memcpy(&receivedData, incomingData, sizeof(receivedData));
     Time_SetTime(receivedData.time);
     Serial.print("NewMsg ");
@@ -60,7 +62,20 @@ void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t 
 }
 
 void Radio_Update() {
-  sendData();
+  if (friendNewlyFound) {
+    Serial.println("Found a friend!");
+    friendNewlyFound = false;
+    sendData();
+  }
+  if (millis() > sendIntervalMillis && millis() - lastSentMillis >= sendIntervalMillis) {
+    lastSentMillis = millis();
+    sendData();
+  }
+  if (friendFound && lastSeenFriendTime > 0 && millis() - lastSeenFriendTime > friendTimeout) {
+    Serial.println("Friend timeout!");
+    friendFound = false;
+  }
+  // TODO delay to save battery.. I think?
 }
 
 void Radio_Init() {
@@ -78,10 +93,10 @@ void Radio_Init() {
     WiFi.disconnect();
 
     Serial.printf("This mac: %s, ", WiFi.macAddress().c_str());
-    Serial.printf("target mac: %02x%02x%02x%02x%02x%02x", slaveMac[0], slaveMac[1], slaveMac[2], slaveMac[3], slaveMac[4], slaveMac[5]);
+    Serial.printf("target mac: %02x%02x%02x%02x%02x%02x", broadcastMac[0], broadcastMac[1], broadcastMac[2], broadcastMac[3], broadcastMac[4], broadcastMac[5]);
     Serial.printf(", channel: %i\n", WIFI_CHANNEL);
 
-    esp_now_add_peer(slaveMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
+    esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
 
     Serial.println("Setup finished");
 
