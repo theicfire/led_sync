@@ -3,6 +3,7 @@
 #include <FastLED.h>
 
 #include "time.h"
+#include "friend.h"
 
 #define LED_PIN     5
 #define NUM_LEDS    150
@@ -18,6 +19,7 @@ TBlendType    currentBlending;
 
 extern CRGBPalette16 myRedWhiteBluePalette;
 extern const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM;
+extern const TProgmemPalette16 only_red PROGMEM;
 void ChangePalettePeriodically();
 void FillLEDsFromPaletteColors(uint8_t colorIndex);
 void SetupBlackAndWhiteStripedPalette();
@@ -39,6 +41,9 @@ void LED_Update()
     
     uint8_t startIndex = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
     
+    if (friendExists) {
+        currentPalette = only_red;
+    }
     FillLEDsFromPaletteColors( startIndex);
     
     FastLED.show();
@@ -129,6 +134,28 @@ void SetupPurpleAndGreenPalette()
 // plentiful than RAM.  A static PROGMEM palette like this
 // takes up 64 bytes of flash.
 const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM =
+{
+    CRGB::Red,
+    CRGB::Gray, // 'white' is too bright compared to red and blue
+    CRGB::Blue,
+    CRGB::Black,
+    
+    CRGB::Red,
+    CRGB::Gray,
+    CRGB::Blue,
+    CRGB::Black,
+    
+    CRGB::Red,
+    CRGB::Red,
+    CRGB::Gray,
+    CRGB::Gray,
+    CRGB::Blue,
+    CRGB::Blue,
+    CRGB::Black,
+    CRGB::Black
+};
+
+const TProgmemPalette16 only_red PROGMEM =
 {
     CRGB::Red,
     CRGB::Gray, // 'white' is too bright compared to red and blue
