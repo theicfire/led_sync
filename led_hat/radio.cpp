@@ -13,7 +13,8 @@ extern "C" {
 //      presumably there is a hidden call to initVariant()
 
 // http://serverfault.com/questions/40712/what-range-of-mac-addresses-can-i-safely-use-for-my-virtual-machines
-uint8_t slaveMac[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x33};
+//uint8_t slaveMac[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x33};
+uint8_t slaveMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 struct __attribute__((packed)) DataStruct {
     char text[32];
@@ -24,22 +25,19 @@ DataStruct sendingData;
 
 unsigned long lastSentMillis = 0;
 unsigned long sendIntervalMillis = 1000;
-bool isMaster = false;
 
 void initVariant() {
-  if (!isMaster) {
-    //WiFi.mode(WIFI_AP);
-    wifi_set_macaddr(SOFTAP_IF, &slaveMac[0]);
-  }
+  //wifi_set_macaddr(SOFTAP_IF, &slaveMac[0]);
 }
 
 void sendData() {
-    if (Time_GetTime() - lastSentMillis >= sendIntervalMillis) {
-        lastSentMillis += sendIntervalMillis;
+    if (Time_GetTime() > sendIntervalMillis && Time_GetTime() - lastSentMillis >= sendIntervalMillis) {
+        //lastSentMillis += sendIntervalMillis;
+        lastSentMillis = Time_GetTime();
         sendingData.time = Time_GetTime();
         uint8_t byteArray[sizeof(sendingData)];
         memcpy(byteArray, &sendingData, sizeof(sendingData));
-        esp_now_send(NULL, byteArray, sizeof(sendingData)); // NULL means send to all peers
+        esp_now_send(slaveMac, byteArray, sizeof(sendingData)); // NULL means send to all peers
         Serial.println("Loop sent data");
     }
 }
@@ -61,7 +59,19 @@ void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t 
     Serial.println();
 }
 
-void Radio_master_setup() {
+void Radio_Update() {
+  sendData();
+}
+
+void Radio_Init() {
+    Serial.begin(115200);
+    if (esp_now_init()!=0) {
+        Serial.println("*** ESP_Now init failed");
+        while(true) {};
+    }
+    // role set to COMBO so it can send and receive - not sure this is essential
+    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
+
     Serial.println("Starting Master");
 
     WiFi.mode(WIFI_STA); // Station mode for esp-now controller
@@ -74,36 +84,6 @@ void Radio_master_setup() {
     esp_now_add_peer(slaveMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
 
     Serial.println("Setup finished");
-}
-
-void Radio_slave_setup() {
-    Serial.println("Starting Slave");
-
-    Serial.print("This AP mac: "); Serial.println(WiFi.softAPmacAddress());
-    Serial.print("This STA mac: "); Serial.println(WiFi.macAddress());
 
     esp_now_register_recv_cb(receiveCallBackFunction);
-    Serial.println("End of setup - waiting for messages");
-}
-
-void Radio_Update() {
-  if (isMaster) {
-    sendData();
-  }
-}
-
-void Radio_Init() {
-    Serial.begin(115200);
-    if (esp_now_init()!=0) {
-        Serial.println("*** ESP_Now init failed");
-        while(true) {};
-    }
-    // role set to COMBO so it can send and receive - not sure this is essential
-    esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-
-    if (isMaster) {
-      Radio_master_setup();
-    } else {
-      Radio_slave_setup();
-    }
 }
