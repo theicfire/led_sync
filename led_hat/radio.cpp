@@ -25,6 +25,7 @@ unsigned long lastSentMillis = 0;
 unsigned long sendIntervalMillis = 3000;
 bool friendFound = false;
 bool friendNewlyFound = false;
+bool quickRespond = false;
 unsigned long friendTimeout = 5000;
 unsigned long lastSeenFriendTime = 0;
 
@@ -43,10 +44,25 @@ void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t 
     if (!friendFound) {
       friendFound = true;
       friendNewlyFound = true;
+      quickRespond = true;
     }
     lastSeenFriendTime = millis();
     memcpy(&receivedData, incomingData, sizeof(receivedData));
-    Time_SetTime(receivedData.time);
+    if (abs(Time_GetTime() - receivedData.time) > 100) {
+      quickRespond = true;
+    }
+    unsigned long avg = (Time_GetTime() + receivedData.time) / 2;
+
+    Serial.print("Old time ");
+    Serial.print(Time_GetTime());
+    Serial.print(" New time ");
+    Serial.print(receivedData.time);
+    Serial.print(" Avg ");
+    Serial.print(avg);
+    Serial.println();
+
+    Time_SetTime(avg);
+
     Serial.print("NewMsg ");
     Serial.print("MacAddr ");
     for (byte n = 0; n < 6; n++) {
@@ -65,9 +81,11 @@ void Radio_Update() {
   if (friendNewlyFound) {
     Serial.println("Found a friend!");
     friendNewlyFound = false;
-    sendData();
   }
-  if (millis() > sendIntervalMillis && millis() - lastSentMillis >= sendIntervalMillis) {
+  if (quickRespond) {
+    sendData();
+    quickRespond = false;
+  } else if (millis() > sendIntervalMillis && millis() - lastSentMillis >= sendIntervalMillis) {
     lastSentMillis = millis();
     sendData();
   }
