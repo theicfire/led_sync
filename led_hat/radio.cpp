@@ -13,7 +13,7 @@ extern "C" {
 //      presumably there is a hidden call to initVariant()
 
 // http://serverfault.com/questions/40712/what-range-of-mac-addresses-can-i-safely-use-for-my-virtual-machines
-uint8_t slaveMac[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x34};
+uint8_t slaveMac[] = {0x36, 0x33, 0x33, 0x33, 0x33, 0x33};
 
 struct __attribute__((packed)) DataStruct {
     char text[32];
@@ -28,7 +28,7 @@ bool isMaster = false;
 
 void initVariant() {
   if (!isMaster) {
-    WiFi.mode(WIFI_AP);
+    //WiFi.mode(WIFI_AP);
     wifi_set_macaddr(SOFTAP_IF, &slaveMac[0]);
   }
 }
