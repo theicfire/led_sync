@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "time.h"
 #include <ESP8266WiFi.h>
+#include "friend.h"
 extern "C" {
 #include <espnow.h>
 #include <user_interface.h>
@@ -23,7 +24,6 @@ DataStruct sendingData;
 
 unsigned long lastSentMillis = 0;
 unsigned long sendIntervalMillis = 3000;
-bool friendFound = false;
 bool friendNewlyFound = false;
 bool quickRespond = false;
 unsigned long friendTimeout = 5000;
@@ -41,14 +41,14 @@ void sendData() {
 }
 
 void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
-  if (!friendFound) {
-    friendFound = true;
+  if (!friendExists) {
+    friendExists = true;
     friendNewlyFound = true;
     quickRespond = true;
   }
   lastSeenFriendTime = millis();
   memcpy(&receivedData, incomingData, sizeof(receivedData));
-  if (abs(Time_GetTime() - receivedData.time) > 100) {
+  if (abs(Time_GetTime() - receivedData.time) > 50) {
     quickRespond = true;
   }
   unsigned long avg = (Time_GetTime() + receivedData.time) / 2;
@@ -89,9 +89,9 @@ void Radio_Update() {
     lastSentMillis = millis();
     sendData();
   }
-  if (friendFound && lastSeenFriendTime > 0 && millis() - lastSeenFriendTime > friendTimeout) {
+  if (friendExists && lastSeenFriendTime > 0 && millis() - lastSeenFriendTime > friendTimeout) {
     Serial.println("Friend timeout!");
-    friendFound = false;
+    friendExists = false;
   }
   // TODO delay to save battery.. I think?
 }

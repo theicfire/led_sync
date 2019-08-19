@@ -20,6 +20,7 @@ TBlendType    currentBlending;
 extern CRGBPalette16 myRedWhiteBluePalette;
 extern const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM;
 extern const TProgmemPalette16 only_red PROGMEM;
+extern const TProgmemPalette16 only_green PROGMEM;
 void ChangePalettePeriodically();
 void FillLEDsFromPaletteColors(uint8_t colorIndex);
 void SetupBlackAndWhiteStripedPalette();
@@ -42,7 +43,11 @@ void LED_Update()
     uint8_t startIndex = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
     
     if (friendExists) {
-        currentPalette = only_red;
+        if (Time_GetTime() % 2000 > 1000) {
+            currentPalette = only_red;
+        } else {
+            currentPalette = only_green;
+        }
     }
     FillLEDsFromPaletteColors( startIndex);
     
@@ -155,26 +160,50 @@ const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM =
     CRGB::Black
 };
 
+const TProgmemPalette16 only_green PROGMEM =
+{
+    CRGB::Green,
+    CRGB::Green,
+    CRGB::Green,
+    CRGB::Green,
+
+    CRGB::Green,
+    CRGB::Green,
+    CRGB::Green,
+    CRGB::Green,
+
+    CRGB::Green,
+    CRGB::Green,
+    CRGB::Green,
+    CRGB::Green,
+
+    CRGB::Green,
+    CRGB::Green,
+    CRGB::Green,
+    CRGB::Green,
+};
+
 const TProgmemPalette16 only_red PROGMEM =
 {
     CRGB::Red,
-    CRGB::Gray, // 'white' is too bright compared to red and blue
-    CRGB::Blue,
-    CRGB::Black,
-    
-    CRGB::Red,
-    CRGB::Gray,
-    CRGB::Blue,
-    CRGB::Black,
-    
     CRGB::Red,
     CRGB::Red,
-    CRGB::Gray,
-    CRGB::Gray,
-    CRGB::Blue,
-    CRGB::Blue,
-    CRGB::Black,
-    CRGB::Black
+    CRGB::Red,
+
+    CRGB::Red,
+    CRGB::Red,
+    CRGB::Red,
+    CRGB::Red,
+
+    CRGB::Red,
+    CRGB::Red,
+    CRGB::Red,
+    CRGB::Red,
+
+    CRGB::Red,
+    CRGB::Red,
+    CRGB::Red,
+    CRGB::Red,
 };
 
 
