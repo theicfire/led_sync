@@ -16,8 +16,9 @@ extern "C" {
 uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 struct __attribute__((packed)) DataStruct {
-  char text[32];
   unsigned int time;
+  unsigned int version;
+  char text[32];
 };
 DataStruct receivedData;
 DataStruct sendingData;
@@ -34,6 +35,7 @@ void initVariant() {
 
 void sendData() {
   sendingData.time = Time_GetTime();
+  sendingData.version = 1;
   uint8_t byteArray[sizeof(sendingData)];
   memcpy(byteArray, &sendingData, sizeof(sendingData));
   esp_now_send(broadcastMac, byteArray, sizeof(sendingData)); // NULL means send to all peers

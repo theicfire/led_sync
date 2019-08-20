@@ -7,7 +7,7 @@
 
 #define LED_PIN     5
 #define NUM_LEDS    300
-#define BRIGHTNESS  20
+//#define BRIGHTNESS  100
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
 CRGB leds[NUM_LEDS];
@@ -18,7 +18,7 @@ TBlendType    currentBlending;
 
 #define UPDATES_PER_SECOND 50
 
-extern const TProgmemPalette16 only_red PROGMEM;
+//extern const TProgmemPalette16 only_red PROGMEM;
 
 DEFINE_GRADIENT_PALETTE( fireandice_gp ) {
     0,  80,  2,  1,
@@ -152,9 +152,36 @@ DEFINE_GRADIENT_PALETTE( aspectcolr_gp ) {
   191, 255,  0,  0,
   255, 255,255,  0};
 
-void runPaletteGradient(int index)
+DEFINE_GRADIENT_PALETTE( only_red ) {
+    0, 255,0,0,
+    255, 255,0,0};
+
+DEFINE_GRADIENT_PALETTE( only_green ) {
+    0, 0,255,0,
+    255, 0,255,0 };
+
+DEFINE_GRADIENT_PALETTE( only_blue ) {
+    0, 0,0,255,
+    255, 0,0,255 };
+
+DEFINE_GRADIENT_PALETTE( only_yellow ) {
+    0, 255,240,0,
+    255, 255,240,0 };
+
+DEFINE_GRADIENT_PALETTE( only_purple ) {
+    0, 255,0,255,
+    255, 255,0,255 };
+
+DEFINE_GRADIENT_PALETTE( only_teal ) {
+    0, 0,240,255,
+    255, 0,240,255 };
+
+DEFINE_GRADIENT_PALETTE( only_orange ) {
+    0, 255,128,0,
+    255, 255,128,0 };
+
+void runPaletteGradient(int index, uint8_t brightness)
 {
-    uint8_t brightness = 255;
     uint8_t colorIndex = index;
 
     for( int i = 0; i < NUM_LEDS; i++) {
@@ -203,22 +230,28 @@ void runMeteorRain(int index, byte red, byte green, byte blue) {
 
 void ChooseLonerGradient(unsigned long time, int speed)
 {
-    uint8_t secondHand = (time / 1000) % (7 * speed);
+    uint8_t secondHand = (time / 1000) % (13 * speed);
     static uint8_t lastSecond = 99;
 
     if( lastSecond != secondHand) {
         lastSecond = secondHand;
-        Serial.print("secondHand: "); Serial.println(secondHand);
+        Serial.print("Loner secondHand: "); Serial.println(secondHand);
     }
 
 
-    else if( secondHand <= 1 * speed)  { targetPalette = CloudColors_p;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 2 * speed)  { targetPalette = PartyColors_p;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 3 * speed)  { targetPalette = fireandice_gp;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 4 * speed)  { targetPalette = sky_45_gp;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 5 * speed)  { targetPalette = es_seadreams_04_gp;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 6 * speed)  { targetPalette = alarm_p1_0_5_gp;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 7 * speed)  { targetPalette = BrBG_07_gp;           currentBlending = LINEARBLEND; }
+    if( secondHand <= 1 * speed)  { targetPalette = CloudColors_p;           currentBlending = LINEARBLEND; }
+    else if( secondHand <= 1 * speed + 3)  { targetPalette = only_red;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 3 * speed)  { targetPalette = PartyColors_p;           currentBlending = LINEARBLEND; }
+    else if( secondHand <= 3 * speed + 3)  { targetPalette = only_blue;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 5 * speed)  { targetPalette = fireandice_gp;           currentBlending = LINEARBLEND; }
+    else if( secondHand <= 5 * speed + 3)  { targetPalette = only_yellow;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 7 * speed)  { targetPalette = sky_45_gp;           currentBlending = LINEARBLEND; }
+    else if( secondHand <= 7 * speed + 3)  { targetPalette = only_purple;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 9 * speed)  { targetPalette = es_seadreams_04_gp;           currentBlending = LINEARBLEND; }
+    else if( secondHand <= 9 * speed + 3)  { targetPalette = only_teal;           currentBlending = LINEARBLEND; }
+    else if( secondHand <= 11 * speed)  { targetPalette = alarm_p1_0_5_gp;           currentBlending = LINEARBLEND; }
+    else if( secondHand <= 11 * speed + 3)  { targetPalette = only_orange;           currentBlending = LINEARBLEND; }
+    else if( secondHand <= 13 * speed)  { targetPalette = BrBG_07_gp;           currentBlending = LINEARBLEND; }
 }
 
 void ChooseFriendGradient(unsigned long time, int speed)
@@ -228,40 +261,75 @@ void ChooseFriendGradient(unsigned long time, int speed)
 
     if( lastSecond != secondHand) {
         lastSecond = secondHand;
-        Serial.print("secondHand: "); Serial.println(secondHand);
+        Serial.print("Friend secondHand: "); Serial.println(secondHand);
     }
     if( secondHand <= 1 * speed)  { targetPalette = RainbowColors_p;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 2 * speed)  { targetPalette = bhw1_05_gp;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 3 * speed)  { targetPalette = bhw1_26_gp;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 4 * speed)  { targetPalette = bhw1_sunconure_gp;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 5 * speed)  { targetPalette = bhw2_turq_gp;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 6 * speed)  { targetPalette = bhw2_10_gp;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 7 * speed)  { targetPalette = bhw3_61_gp;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 8 * speed)  { targetPalette = bhw4_029_gp;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 9 * speed)  { targetPalette = aspectcolr_gp;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 1 * speed + 3)  { targetPalette = only_green;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 3 * speed)  { targetPalette = bhw1_05_gp;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 3 * speed + 3)  { targetPalette = only_red;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 5 * speed)  { targetPalette = bhw1_26_gp;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 5 * speed + 3)  { targetPalette = only_blue;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 7 * speed)  { targetPalette = bhw1_sunconure_gp;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 7 * speed + 3)  { targetPalette = only_yellow;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 9 * speed)  { targetPalette = bhw2_turq_gp;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 9 * speed + 3)  { targetPalette = only_purple;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 11 * speed)  { targetPalette = bhw2_10_gp;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 11 * speed + 3)  { targetPalette = only_teal;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 13 * speed)  { targetPalette = bhw3_61_gp;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 13 * speed + 3)  { targetPalette = only_orange;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 15 * speed)  { targetPalette = bhw4_029_gp;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 15 * speed + 3)  { targetPalette = only_green;         currentBlending = LINEARBLEND; }
+    else if( secondHand <= 17 * speed)  { targetPalette = aspectcolr_gp;         currentBlending = LINEARBLEND; }
 }
 
 void LED_Init() {
     FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-    FastLED.setBrightness(BRIGHTNESS);
+    //FastLED.setBrightness(BRIGHTNESS);
 
     targetPalette = RainbowColors_p;
     currentPalette = RainbowColors_p;
     currentBlending = LINEARBLEND;
 }
 
+uint8_t get_brightness(bool friendExists) {
+    uint8_t friend_brightness = 140;
+    uint8_t loner_brightness = 25;
+    static unsigned long start_brightness_move = 0;
+    static bool didFriendExist = false;
+    if (friendExists != didFriendExist) {
+      start_brightness_move = millis();
+      didFriendExist = friendExists;
+    }
+    unsigned long brightness_move_fraction_long = (millis() - start_brightness_move) * 255 / 1000;
+    uint8_t brightness_move_fraction = 255;
+    if (brightness_move_fraction_long < 250) {
+      brightness_move_fraction = brightness_move_fraction_long;
+    }
+    if (friendExists) {
+      return ((unsigned long) (friend_brightness - loner_brightness)) * brightness_move_fraction / 255 + loner_brightness;
+    } else {
+      return friend_brightness - ((unsigned long) (friend_brightness - loner_brightness)) * brightness_move_fraction / 255;
+    }
+
+}
+
 void LED_Update()
 {
-    if (!friendExists) {
+    static unsigned long last_brightness_update_time = 0;
+    uint8_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
+
+    int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
+    if (friendExists) {
       ChooseFriendGradient(Time_GetTime(), 5);
     } else {
       ChooseLonerGradient(Time_GetTime(), 5);
     }
-    nblendPaletteTowardPalette( currentPalette, targetPalette, 24);
+    nblendPaletteTowardPalette( currentPalette, targetPalette, 48);
 
-    uint8_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
 
-    runPaletteGradient(index);
+    uint8_t brightness = get_brightness(friendExists);
+    //Serial.println(brightness);
+    runPaletteGradient(index, brightness);
 
     FastLED.show();
 }
@@ -306,27 +374,27 @@ void LED_Update()
 
 
 
-const TProgmemPalette16 only_red PROGMEM =
-{
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Red,
+//const TProgmemPalette16 only_red PROGMEM =
+//{
+    //CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
 
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
 
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
 
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Red,
-};
+    //CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
+    //CRGB::Red,
+//};
 
 
