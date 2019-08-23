@@ -9,6 +9,9 @@ extern "C" {
 }
 #define WIFI_CHANNEL 4
 
+// Id 0 means don't ignore anyone
+#define FRIEND_ID 1 // Nihar
+
 // it seems that the mac address needs to be set before setup() is called
 //      and the inclusion of user_interface.h facilitates that
 //      presumably there is a hidden call to initVariant()
@@ -18,7 +21,8 @@ uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 struct __attribute__((packed)) DataStruct {
   unsigned int time;
   unsigned int version;
-  char text[32];
+  uint8_t friend_id;
+  char text[31];
 };
 DataStruct receivedData;
 DataStruct sendingData;
@@ -36,6 +40,7 @@ void initVariant() {
 void sendData() {
   sendingData.time = Time_GetTime();
   sendingData.version = 1;
+  sendingData.friend_id = FRIEND_ID;
   uint8_t byteArray[sizeof(sendingData)];
   memcpy(byteArray, &sendingData, sizeof(sendingData));
   esp_now_send(broadcastMac, byteArray, sizeof(sendingData)); // NULL means send to all peers
@@ -43,13 +48,15 @@ void sendData() {
 }
 
 void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
-  if (!friendExists) {
-    friendExists = true;
-    friendNewlyFound = true;
-    quickRespond = true;
-  }
-  lastSeenFriendTime = millis();
   memcpy(&receivedData, incomingData, sizeof(receivedData));
+  if (FRIEND_ID == 0 || receivedData.friend_id != FRIEND_ID) {
+    lastSeenFriendTime = millis();
+    if (!friendExists) {
+      friendExists = true;
+      friendNewlyFound = true;
+      quickRespond = true;
+    }
+  }
   if (abs(Time_GetTime() - receivedData.time) > 50) {
     quickRespond = true;
   }
