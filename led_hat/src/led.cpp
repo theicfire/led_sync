@@ -292,8 +292,8 @@ void LED_Init() {
 }
 
 uint8_t get_brightness(bool friendExists) {
-    uint8_t friend_brightness = 140;
-    uint8_t loner_brightness = 25;
+    uint8_t friend_brightness = 20;
+    uint8_t loner_brightness = 7;
     static unsigned long start_brightness_move = 0;
     static bool didFriendExist = false;
     if (friendExists != didFriendExist) {
