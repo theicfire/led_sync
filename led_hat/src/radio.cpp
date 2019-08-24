@@ -10,7 +10,7 @@ extern "C" {
 #define WIFI_CHANNEL 4
 
 // Id 0 means don't ignore anyone
-#define FRIEND_ID 1 // Nihar
+#define FRIEND_ID 0 // everyone is a cool friend
 
 // it seems that the mac address needs to be set before setup() is called
 //      and the inclusion of user_interface.h facilitates that
