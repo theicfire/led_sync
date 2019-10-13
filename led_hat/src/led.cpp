@@ -5,6 +5,8 @@
 #include "time.h"
 #include "friend.h"
 
+#define NUM_COLORS 4
+#define ANIMATION_SECONDS 4
 #define LED_PIN     5
 #define NUM_LEDS    300
 //#define BRIGHTNESS  100
@@ -180,28 +182,23 @@ DEFINE_GRADIENT_PALETTE( only_orange ) {
     0, 255,128,0,
     255, 255,128,0 };
 
-uint8_t loc_head = 200; // different for each micro .. this would be the second 5ft section
+uint8_t loc_head = 100; // different for each micro .. this would be the second 5ft section
+
 
 // Time in ms. Starts at 0.
-void runNeurons(unsigned long time) {
+void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
   // 1200 LEDs in 4s
-  int loc = ((time % 4000) * 3/10);
+  int loc = ((time % (ANIMATION_SECONDS * 1000)) * 1200 / (ANIMATION_SECONDS * 1000));
   int loc_head_offset = loc - loc_head;
-  for (int j = 0; j < NUM_LEDS; j++) {
-    leds[j].r = 0;
-    leds[j].g = 0;
-    leds[j].b = 0;
-  }
   if (loc >= loc_head && loc_head_offset < NUM_LEDS + 10) {
     int loc_fade_begin = (loc_head_offset <= 10) ? 0 : loc_head_offset - 10;
     int loc_fade_end = (loc_head_offset >= NUM_LEDS) ? NUM_LEDS - 1 : loc_head_offset;
     int brightness = 0;
     for (int i = loc_fade_begin; i < loc_fade_end; i++) {
       brightness += 25;
-      // TODO better colors..
-      leds[i].r = brightness;
-      leds[i].g = 0;
-      leds[i].b = 0;
+      leds[i].r = ((int) red * 255 / brightness);
+      leds[i].g = ((int) green * 255 / brightness);
+      leds[i].b = ((int) blue * 255 / brightness);
     }
   }
 }
@@ -235,7 +232,7 @@ void runMeteorRain(int index, byte red, byte green, byte blue) {
     uint8_t meteorSize = 10;
     uint8_t meteorTrailDecay = 64;
     // 2x leds to have the tail of the meteor work correctly
-    int i = index % (NUM_LEDS * 2);
+    //int i = index % (NUM_LEDS * 2);
     // fade brightness all LEDs one step
     for(int j=0; j<NUM_LEDS; j++) {
         if(random(10)>5) {
@@ -339,6 +336,15 @@ uint8_t get_brightness(bool friendExists) {
 
 }
 
+
+uint8_t colors[][NUM_COLORS] = {
+  255, 0, 0, // red, green, blue
+  0, 0, 255,
+  255, 0, 255,
+  255, 100, 100,
+};
+int current_color = 0;
+int past_sec = 0;
 void LED_Update()
 {
     //static unsigned long last_brightness_update_time = 0;
@@ -358,11 +364,22 @@ void LED_Update()
 
     unsigned long time = Time_GetTime();
     int sec = time / 1000;
-    int past_sec = 0;
     if (sec != past_sec) {
-      Serial.println(sec);
       past_sec = sec;
+      if (sec % ANIMATION_SECONDS == 0) {
+        current_color = (current_color + 1) % NUM_COLORS;
+      }
+      Serial.println(current_color);
     }
-    runNeurons(time);
+    for (int j = 0; j < NUM_LEDS; j++) {
+      leds[j].r = 0;
+      leds[j].g = 0;
+      leds[j].b = 0;
+    }
+    //if (sec % 9 == 0) {
+      //return;
+    //}
+    runNeurons(time, colors[current_color][0], colors[current_color][1], colors[current_color][2]);
+    //runNeurons(time, 0, 0, 255);
     FastLED.show();
 }
