@@ -180,6 +180,32 @@ DEFINE_GRADIENT_PALETTE( only_orange ) {
     0, 255,128,0,
     255, 255,128,0 };
 
+uint8_t loc_head = 200; // different for each micro .. this would be the second 5ft section
+
+// Time in ms. Starts at 0.
+void runNeurons(unsigned long time) {
+  // 1200 LEDs in 4s
+  int loc = ((time % 4000) * 3/10);
+  int loc_head_offset = loc - loc_head;
+  for (int j = 0; j < NUM_LEDS; j++) {
+    leds[j].r = 0;
+    leds[j].g = 0;
+    leds[j].b = 0;
+  }
+  if (loc >= loc_head && loc_head_offset < NUM_LEDS + 10) {
+    int loc_fade_begin = (loc_head_offset <= 10) ? 0 : loc_head_offset - 10;
+    int loc_fade_end = (loc_head_offset >= NUM_LEDS) ? NUM_LEDS - 1 : loc_head_offset;
+    int brightness = 0;
+    for (int i = loc_fade_begin; i < loc_fade_end; i++) {
+      brightness += 25;
+      // TODO better colors..
+      leds[i].r = brightness;
+      leds[i].g = 0;
+      leds[i].b = 0;
+    }
+  }
+}
+
 void runPaletteGradient(int index, uint8_t brightness)
 {
     uint8_t colorIndex = index;
@@ -315,86 +341,28 @@ uint8_t get_brightness(bool friendExists) {
 
 void LED_Update()
 {
-    static unsigned long last_brightness_update_time = 0;
-    uint8_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
+    //static unsigned long last_brightness_update_time = 0;
+    //uint8_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
 
-    int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
-    if (friendExists) {
-      ChooseFriendGradient(Time_GetTime(), 5);
-    } else {
-      ChooseLonerGradient(Time_GetTime(), 5);
+    //int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
+    //if (friendExists) {
+      //ChooseFriendGradient(Time_GetTime(), 5);
+    //} else {
+      //ChooseLonerGradient(Time_GetTime(), 5);
+    //}
+    //nblendPaletteTowardPalette( currentPalette, targetPalette, 48);
+
+
+    //uint8_t brightness = get_brightness(friendExists);
+    //runPaletteGradient(index, brightness);
+
+    unsigned long time = Time_GetTime();
+    int sec = time / 1000;
+    int past_sec = 0;
+    if (sec != past_sec) {
+      Serial.println(sec);
+      past_sec = sec;
     }
-    nblendPaletteTowardPalette( currentPalette, targetPalette, 48);
-
-
-    uint8_t brightness = get_brightness(friendExists);
-    //Serial.println(brightness);
-    runPaletteGradient(index, brightness);
-
+    runNeurons(time);
     FastLED.show();
 }
-
-//// This function fills the palette with totally random colors.
-//void SetupTotallyRandomPalette()
-//{
-    //for( int i = 0; i < 16; i++) {
-        //currentPalette[i] = CHSV( random8(), 255, random8());
-    //}
-//}
-
-// This function sets up a palette of black and white stripes,
-// using code.  Since the palette is effectively an array of
-// sixteen CRGB colors, the various fill_* functions can be used
-// to set them up.
-//void SetupBlackAndWhiteStripedPalette()
-//{
-    //// 'black out' all 16 palette entries...
-    //fill_solid( currentPalette, 16, CRGB::Black);
-    //// and set every fourth one to white.
-    //currentPalette[0] = CRGB::White;
-    //currentPalette[4] = CRGB::White;
-    //currentPalette[8] = CRGB::White;
-    //currentPalette[12] = CRGB::White;
-    
-//}
-
-//// This function sets up a palette of purple and green stripes.
-//void SetupPurpleAndGreenPalette()
-//{
-    //CRGB purple = CHSV( HUE_PURPLE, 255, 255);
-    //CRGB green  = CHSV( HUE_GREEN, 255, 255);
-    //CRGB black  = CRGB::Black;
-    
-    //currentPalette = CRGBPalette16(
-                                   //green,  green,  black,  black,
-                                   //purple, purple, black,  black,
-                                   //green,  green,  black,  black,
-                                   //purple, purple, black,  black );
-//}
-
-
-
-//const TProgmemPalette16 only_red PROGMEM =
-//{
-    //CRGB::Red,
-    //CRGB::Red,
-    //CRGB::Red,
-    //CRGB::Red,
-
-    //CRGB::Red,
-    //CRGB::Red,
-    //CRGB::Red,
-    //CRGB::Red,
-
-    //CRGB::Red,
-    //CRGB::Red,
-    //CRGB::Red,
-    //CRGB::Red,
-
-    //CRGB::Red,
-    //CRGB::Red,
-    //CRGB::Red,
-    //CRGB::Red,
-//};
-
-
