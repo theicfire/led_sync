@@ -5,8 +5,8 @@
 #include "time.h"
 #include "friend.h"
 
-#define NUM_COLORS 4
-#define ANIMATION_SECONDS 4
+#define NUM_COLORS 3
+#define ANIMATION_SECONDS 10
 #define LED_PIN     5
 #define NUM_LEDS    300
 //#define BRIGHTNESS  100
@@ -17,6 +17,7 @@ CRGB leds[NUM_LEDS];
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
 TBlendType    currentBlending;
+uint8_t loc_head = 0; // different for each micro .. this would be the second 5ft section
 
 #define UPDATES_PER_SECOND 50
 
@@ -182,7 +183,6 @@ DEFINE_GRADIENT_PALETTE( only_orange ) {
     0, 255,128,0,
     255, 255,128,0 };
 
-uint8_t loc_head = 100; // different for each micro .. this would be the second 5ft section
 
 
 // Time in ms. Starts at 0.
@@ -338,10 +338,9 @@ uint8_t get_brightness(bool friendExists) {
 
 
 uint8_t colors[][NUM_COLORS] = {
-  255, 0, 0, // red, green, blue
+  255, 0, 0,
+  255, 0, 100,
   0, 0, 255,
-  255, 0, 255,
-  255, 100, 100,
 };
 int current_color = 0;
 int past_sec = 0;
@@ -376,10 +375,6 @@ void LED_Update()
       leds[j].g = 0;
       leds[j].b = 0;
     }
-    //if (sec % 9 == 0) {
-      //return;
-    //}
     runNeurons(time, colors[current_color][0], colors[current_color][1], colors[current_color][2]);
-    //runNeurons(time, 0, 0, 255);
     FastLED.show();
 }
