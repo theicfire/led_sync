@@ -17,7 +17,7 @@ CRGB leds[NUM_LEDS];
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
 TBlendType    currentBlending;
-uint8_t loc_head = 0; // different for each micro .. this would be the second 5ft section
+int loc_head = 840; // different for each micro .. this would be the second 5ft section
 
 #define UPDATES_PER_SECOND 50
 
@@ -363,12 +363,9 @@ void LED_Update()
 
     unsigned long time = Time_GetTime();
     int sec = time / 1000;
+    current_color = (time / (ANIMATION_SECONDS * 1000)) % NUM_COLORS;
     if (sec != past_sec) {
       past_sec = sec;
-      if (sec % ANIMATION_SECONDS == 0) {
-        current_color = (current_color + 1) % NUM_COLORS;
-      }
-      Serial.println(current_color);
     }
     for (int j = 0; j < NUM_LEDS; j++) {
       leds[j].r = 0;
