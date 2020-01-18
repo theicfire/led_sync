@@ -18,7 +18,7 @@ CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
 TBlendType currentBlending;
 int loc_head =
-    840;  // different for each micro .. this would be the second 5ft section
+    540;  // different for each micro .. this would be the second 5ft section
 
 #define UPDATES_PER_SECOND 50
 
@@ -95,23 +95,24 @@ DEFINE_GRADIENT_PALETTE(only_teal){0, 0, 240, 255, 255, 0, 240, 255};
 
 DEFINE_GRADIENT_PALETTE(only_orange){0, 255, 128, 0, 255, 255, 128, 0};
 
-// Time in ms. Starts at 0.
-void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
-  // 1200 LEDs in 4s
+CRGB runSingle(int index, unsigned long time, uint8_t red, uint8_t green,
+               uint8_t blue) {
   int loc =
       ((time % (ANIMATION_SECONDS * 1000)) * 1200 / (ANIMATION_SECONDS * 1000));
-  int loc_head_offset = loc - loc_head;
-  if (loc >= loc_head && loc_head_offset < NUM_LEDS + 10) {
-    int loc_fade_begin = (loc_head_offset <= 10) ? 0 : loc_head_offset - 10;
-    int loc_fade_end =
-        (loc_head_offset >= NUM_LEDS) ? NUM_LEDS - 1 : loc_head_offset;
-    int brightness = 0;
-    for (int i = loc_fade_begin; i < loc_fade_end; i++) {
-      brightness += 25;
-      leds[i].r = ((int)red * 255 / brightness);
-      leds[i].g = ((int)green * 255 / brightness);
-      leds[i].b = ((int)blue * 255 / brightness);
-    }
+  CRGB ret = {.r = 0, .b = 0, .g = 0};
+  if (index < loc && index + 10 > loc) {
+    int brightness = (loc - index) * 25;
+    ret.r = ((int)red * 255 / brightness);
+    ret.g = ((int)green * 255 / brightness);
+    ret.b = ((int)blue * 255 / brightness);
+    return ret;
+  }
+  return ret;
+}
+// Time in ms. Starts at 0.
+void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = runSingle(i + loc_head, time, red, green, blue);
   }
 }
 
