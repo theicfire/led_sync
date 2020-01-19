@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
+#include "first_image.h"
 #include "friend.h"
 #include "time.h"
 
@@ -19,6 +20,7 @@ CRGBPalette16 targetPalette;
 TBlendType currentBlending;
 int loc_head =
     540;  // different for each micro .. this would be the second 5ft section
+static uint8_t led_buff[300][3];
 
 #define UPDATES_PER_SECOND 50
 
@@ -97,23 +99,38 @@ DEFINE_GRADIENT_PALETTE(only_orange){0, 255, 128, 0, 255, 255, 128, 0};
 
 CRGB runSingle(int index, unsigned long time, uint8_t red, uint8_t green,
                uint8_t blue) {
-  int loc =
-      ((time % (ANIMATION_SECONDS * 1000)) * 1200 / (ANIMATION_SECONDS * 1000));
+  // int loc =
+  //     ((time % (ANIMATION_SECONDS * 1000)) * 1200 / (ANIMATION_SECONDS *
+  //     1000));
   CRGB ret = {.r = 0, .b = 0, .g = 0};
-  if (index < loc && index + 10 > loc) {
-    int brightness = (loc - index) * 25;
-    ret.r = ((int)red * 255 / brightness);
-    ret.g = ((int)green * 255 / brightness);
-    ret.b = ((int)blue * 255 / brightness);
-    return ret;
-  }
+  ret.r = led_buff[index][0];
+  ret.g = led_buff[index][1];
+  ret.b = led_buff[index][2];
+  // if (index < loc && index + 10 > loc) {
+  //   int brightness = (loc - index) * 25;
+  //   ret.r = ((int)red * 255 / brightness);
+  //   ret.g = ((int)green * 255 / brightness);
+  //   ret.b = ((int)blue * 255 / brightness);
+  //   return ret;
+  // }
   return ret;
 }
+static int count = 0;
 // Time in ms. Starts at 0.
 void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
+  count += 1;
+  int loc = (time / 33) % NUM_LEDS;
+  printf("run %d %d\n", loc, count);
+  memcpy_P(led_buff, first_image[loc], NUM_LEDS * 3);
+  // for (int i = 0; i < 12; i++) {
+  //   printf("buff %d %d\n", i, led_buff[i]);
+  // }
   for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = runSingle(i + loc_head, time, red, green, blue);
+    leds[i] = runSingle(i, time, red, green, blue);
   }
+  // for (int i = 0; i < NUM_LEDS; i++) {
+  //   leds[i] = runSingle(i + loc_head, time, red, green, blue);
+  // }
 }
 
 void runPaletteGradient(int index, uint8_t brightness) {
