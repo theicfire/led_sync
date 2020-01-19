@@ -3,9 +3,9 @@
 #include <FastLED.h>
 
 #include "color_mix.h"
-#include "first_image.h"
 #include "friend.h"
 #include "gamma.h"
+#include "image_lion.h"
 #include "time.h"
 
 constexpr int NUM_COLORS = 3;
@@ -22,15 +22,19 @@ static CRGB tr = {0, 255, 0};
 static CRGB bl = {255, 0, 0};
 static CRGB br = {0, 0, 255};
 
-constexpr float WIDTH_MULTIPLY = 4.f;
+constexpr float WIDTH_MULTIPLY = 8.f;
 constexpr float HEIGHT_MULTIPLY = 16.f;
 constexpr int IMAGE_HEIGHT = 300;
 constexpr int IMAGE_WIDTH = 300;
 static uint8_t led_buff1[IMAGE_WIDTH][3];
 static uint8_t led_buff2[IMAGE_WIDTH][3];
+constexpr int NUM_MOVEMENTS = 6;
+constexpr int MS_PER_MOVEMENT = 60000;
+static int movements[NUM_MOVEMENTS][2] = {{0, 0},     {0, 299}, {0, 150},
+                                          {150, 150}, {150, 0}, {150, 299}};
 
 // Different for each micro
-constexpr int LED_OFFSET = 300;
+constexpr int LED_OFFSET = 0;
 
 CRGB getColorBuff1(int index) {
   CRGB ret = {.r = 0, .b = 0, .g = 0};
@@ -51,29 +55,47 @@ CRGB getColorBuff2(int index) {
 // Time in ms. Starts at 0.
 void playImage(unsigned long time) {
   count += 1;
-  constexpr int FRAME_RATE = 1000 / 60;
-  int loc = (time / FRAME_RATE) %
-            ((IMAGE_HEIGHT - 1) *
-             ((int)HEIGHT_MULTIPLY));  // - 1 because we want to read the last
-                                       // two row of flash
-  float y = loc / HEIGHT_MULTIPLY;
+  int movement_index = (time / MS_PER_MOVEMENT) % NUM_MOVEMENTS;
+  int previous_movement_index = ((time / MS_PER_MOVEMENT) - 1) % NUM_MOVEMENTS;
+  float fraction = ((time - movement_index * MS_PER_MOVEMENT) %
+                    (NUM_MOVEMENTS * MS_PER_MOVEMENT)) /
+                   (MS_PER_MOVEMENT * 1.f);
+  float y = movements[movement_index][1] * fraction +
+            movements[previous_movement_index][1] * (1 - fraction);
   int yi = y;
-  memcpy_P(led_buff1, first_image[yi], IMAGE_WIDTH * 3);
-  memcpy_P(led_buff2, first_image[yi + 1], IMAGE_WIDTH * 3);
+  float x_start = movements[movement_index][0] * fraction +
+                  movements[previous_movement_index][0] * (1 - fraction);
+  printf("movement info: %d %d, y: %f, fraction: %f, x_start: %f\n",
+         movement_index, previous_movement_index, y, fraction, x_start);
+
+  // constexpr int FRAME_RATE = 1000 / 60;
+  // int loc = (time / FRAME_RATE) %
+  //           ((IMAGE_HEIGHT - 1) *
+  //            ((int)HEIGHT_MULTIPLY));  // - 1 because we want to read the
+  //            last
+  //                                      // two row of flash
+  // float y = loc / HEIGHT_MULTIPLY;
+  memcpy_P(led_buff1, image_lion[yi], IMAGE_WIDTH * 3);
+  memcpy_P(led_buff2, image_lion[yi + 1], IMAGE_WIDTH * 3);
   // TODO check that we don't go over the width
   for (int i = 0; i < NUM_LEDS; i++) {
-    float x =
-        ((i + LED_OFFSET) % (NUM_LEDS * (int)WIDTH_MULTIPLY)) / WIDTH_MULTIPLY;
-    int xi = x;
+    int x = ((i + ((int)x_start * (int)WIDTH_MULTIPLY) + LED_OFFSET) %
+             (NUM_LEDS * (int)WIDTH_MULTIPLY)) /
+            WIDTH_MULTIPLY;
+    float x_fraction = x_start - ((int)x_start);
+    if (i == 0) {
+      printf("x is %d, x_fraction is %f\n", x, x_fraction);
+    }
     CRGB tl = getColorBuff1(x);
     CRGB tr = getColorBuff1(x + 1);
     CRGB bl = getColorBuff2(x);
     CRGB br = getColorBuff2(x + 1);
-    leds[i] = calculate_color_mix(tl, tr, bl, br, (x - xi), (y - yi));
+    leds[i] = calculate_color_mix(tl, tr, bl, br, x_fraction, (y - yi));
   }
 }
 
 void LED_Init() {
+  printf("hello\n");
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS)
       .setCorrection(TypicalLEDStrip);
   // FastLED.setBrightness(BRIGHTNESS);
