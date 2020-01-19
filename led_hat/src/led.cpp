@@ -5,6 +5,7 @@
 #include "color_mix.h"
 #include "first_image.h"
 #include "friend.h"
+#include "gamma.h"
 #include "time.h"
 
 #define NUM_COLORS 3
@@ -101,17 +102,17 @@ DEFINE_GRADIENT_PALETTE(only_orange){0, 255, 128, 0, 255, 255, 128, 0};
 
 CRGB getColorBuff1(int index) {
   CRGB ret = {.r = 0, .b = 0, .g = 0};
-  ret.r = led_buff1[index][0];
-  ret.g = led_buff1[index][1];
-  ret.b = led_buff1[index][2];
+  ret.r = pgm_read_byte(&gamma8[led_buff1[index][0]]);
+  ret.g = pgm_read_byte(&gamma8[led_buff1[index][1]]);
+  ret.b = pgm_read_byte(&gamma8[led_buff1[index][2]]);
   return ret;
 }
 
 CRGB getColorBuff2(int index) {
   CRGB ret = {.r = 0, .b = 0, .g = 0};
-  ret.r = led_buff2[index][0];
-  ret.g = led_buff2[index][1];
-  ret.b = led_buff2[index][2];
+  ret.r = pgm_read_byte(&gamma8[led_buff2[index][0]]);
+  ret.g = pgm_read_byte(&gamma8[led_buff2[index][1]]);
+  ret.b = pgm_read_byte(&gamma8[led_buff2[index][2]]);
   return ret;
 }
 
@@ -139,7 +140,7 @@ void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
   memcpy_P(led_buff1, first_image[yi], NUM_LEDS * 3);
   memcpy_P(led_buff2, first_image[yi + 1], NUM_LEDS * 3);
   // this will handle the first 300 of the 1200 width pixels..
-  for (int i = 0; i < 50; i++) {
+  for (int i = 0; i < NUM_LEDS; i++) {
     float x = i / WIDTH_MULTIPLY;
     int xi = x;
     CRGB tl = getColorBuff1(x);
