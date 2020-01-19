@@ -13,7 +13,7 @@ float bilinear_interp(float c00, float c10, float c01, float c11, float tx,
 CRGB calculate_color_mix(CRGB c00, CRGB c10, CRGB c01, CRGB c11, float x,
                          float y) {
   CRGB ret = {0, 0, 0};
-  if (x > 1.0f || y > 1.0f) {
+  if (x > 1.0f || y > 1.0f || x < 0 || y < 0) {
     return ret;
   }
   ret.r = bilinear_interp(c00.r, c10.r, c01.r, c11.r, x, y);

@@ -21,7 +21,8 @@ CRGBPalette16 targetPalette;
 TBlendType currentBlending;
 int loc_head =
     540;  // different for each micro .. this would be the second 5ft section
-static uint8_t led_buff[300][3];
+static uint8_t led_buff1[300][3];
+static uint8_t led_buff2[300][3];
 
 #define UPDATES_PER_SECOND 50
 
@@ -98,22 +99,19 @@ DEFINE_GRADIENT_PALETTE(only_teal){0, 0, 240, 255, 255, 0, 240, 255};
 
 DEFINE_GRADIENT_PALETTE(only_orange){0, 255, 128, 0, 255, 255, 128, 0};
 
-CRGB runSingle(int index, unsigned long time, uint8_t red, uint8_t green,
-               uint8_t blue) {
-  // int loc =
-  //     ((time % (ANIMATION_SECONDS * 1000)) * 1200 / (ANIMATION_SECONDS *
-  //     1000));
+CRGB getColorBuff1(int index) {
   CRGB ret = {.r = 0, .b = 0, .g = 0};
-  ret.r = led_buff[index][0];
-  ret.g = led_buff[index][1];
-  ret.b = led_buff[index][2];
-  // if (index < loc && index + 10 > loc) {
-  //   int brightness = (loc - index) * 25;
-  //   ret.r = ((int)red * 255 / brightness);
-  //   ret.g = ((int)green * 255 / brightness);
-  //   ret.b = ((int)blue * 255 / brightness);
-  //   return ret;
-  // }
+  ret.r = led_buff1[index][0];
+  ret.g = led_buff1[index][1];
+  ret.b = led_buff1[index][2];
+  return ret;
+}
+
+CRGB getColorBuff2(int index) {
+  CRGB ret = {.r = 0, .b = 0, .g = 0};
+  ret.r = led_buff2[index][0];
+  ret.g = led_buff2[index][1];
+  ret.b = led_buff2[index][2];
   return ret;
 }
 
@@ -125,25 +123,31 @@ static CRGB bl = {255, 0, 0};
 static CRGB br = {0, 0, 255};
 
 // Time in ms. Starts at 0.
+constexpr float WIDTH_MULTIPLY = 4.f;
+constexpr float HEIGHT_MULTIPLY = 16.f;
+constexpr int IMAGE_HEIGHT = 300;
 void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
   count += 1;
-  int loc = (time / 33) % 100;
-  // printf("run %d %d, mix1 %d, mix2 %d\n", loc, count,
-  //        mixer.calculate_color_mix(0, 0).r, mixer.calculate_color_mix(0,
-  //        80).r);
-  // memcpy_P(led_buff, first_image[loc], NUM_LEDS * 3);
-  // for (int i = 0; i < 12; i++) {
-  //   printf("buff %d %d\n", i, led_buff[i]);
-  // }
+  constexpr int FRAME_RATE = 1000 / 60;
+  int loc = (time / FRAME_RATE) %
+            ((IMAGE_HEIGHT - 1) *
+             ((int)HEIGHT_MULTIPLY));  // - 1 because we want to read the last
+                                       // two row of flash
+  float y = loc / HEIGHT_MULTIPLY;
+  int yi = y;
+  printf("loc = %d, y = %f, yi = %d\n", loc, y, yi);
+  memcpy_P(led_buff1, first_image[yi], NUM_LEDS * 3);
+  memcpy_P(led_buff2, first_image[yi + 1], NUM_LEDS * 3);
+  // this will handle the first 300 of the 1200 width pixels..
   for (int i = 0; i < 50; i++) {
-    leds[i] = calculate_color_mix(tl, tr, bl, br, i / 300.0f, loc / 100.f);
+    float x = i / WIDTH_MULTIPLY;
+    int xi = x;
+    CRGB tl = getColorBuff1(x);
+    CRGB tr = getColorBuff1(x + 1);
+    CRGB bl = getColorBuff2(x);
+    CRGB br = getColorBuff2(x + 1);
+    leds[i] = calculate_color_mix(tl, tr, bl, br, (x - xi), (y - yi));
   }
-  for (int i = 280; i < 290; i++) {
-    leds[i] = calculate_color_mix(tl, tr, bl, br, i / 300.0f, loc / 100.f);
-  }
-  // for (int i = 0; i < NUM_LEDS; i++) {
-  //   leds[i] = runSingle(i + loc_head, time, red, green, blue);
-  // }
 }
 
 void runPaletteGradient(int index, uint8_t brightness) {
