@@ -31,24 +31,24 @@ constexpr int IMAGE_WIDTH = 300;
 static uint8_t led_buff1[IMAGE_WIDTH][3];
 static uint8_t led_buff2[IMAGE_WIDTH][3];
 constexpr int NUM_MOVEMENTS = 7;
-constexpr int MS_PER_MOVEMENT = 60000;
+constexpr int MS_PER_MOVEMENT = 10000;
 static int movements[NUM_MOVEMENTS][2] = {{0, 0},
-{0, 793}, {0, 400}, {150, 400}, {150, 0}, {150, 793}, {100, 300}};
+{0, 763}, {0, 400}, {150, 400}, {150, 0}, {150, 763}, {100, 300}};
 
 
 CRGB getColorBuff1(int index) {
   CRGB ret = {.r = 0, .b = 0, .g = 0};
-  ret.r = pgm_read_byte(&gamma8[led_buff1[index][0]]);
-  ret.g = pgm_read_byte(&gamma8[led_buff1[index][1]]);
-  ret.b = pgm_read_byte(&gamma8[led_buff1[index][2]]);
+  ret.r = pgm_read_byte(&gamma8[led_buff1[index][0]]) / 2;
+  ret.g = pgm_read_byte(&gamma8[led_buff1[index][1]]) / 2;
+  ret.b = pgm_read_byte(&gamma8[led_buff1[index][2]]) / 2;
   return ret;
 }
 
 CRGB getColorBuff2(int index) {
   CRGB ret = {.r = 0, .b = 0, .g = 0};
-  ret.r = pgm_read_byte(&gamma8[led_buff2[index][0]]);
-  ret.g = pgm_read_byte(&gamma8[led_buff2[index][1]]);
-  ret.b = pgm_read_byte(&gamma8[led_buff2[index][2]]);
+  ret.r = pgm_read_byte(&gamma8[led_buff2[index][0]]) / 2;
+  ret.g = pgm_read_byte(&gamma8[led_buff2[index][1]]) / 2;
+  ret.b = pgm_read_byte(&gamma8[led_buff2[index][2]]) / 2;
   return ret;
 }
 
