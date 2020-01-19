@@ -16,12 +16,8 @@ class ColorMix {
   Color tl, bl, tr, br;
 
  public:
-  // tl: top left - color at 0, 0
-  // bl: top left - color at 0, 100
-  // tr: top left - color at 100, 0
-  // tr: top left - color at 100, 100
   ColorMix(Color tl, Color bl, Color tr, Color br);
-  // x, y: numbers between 0 and 100, to find the mix color
+  // x, y: numbers between 0 and 1, to find the mix color
   // Return: Mixed color, or all 0's in the case of an error
-  Color calculate_color_mix(uint8_t x, uint8_t y);
+  Color calculate_color_mix(float x, float y);
 };

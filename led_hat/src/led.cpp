@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
+#include "color_mix.h"
 #include "first_image.h"
 #include "friend.h"
 #include "time.h"
@@ -115,18 +116,37 @@ CRGB runSingle(int index, unsigned long time, uint8_t red, uint8_t green,
   // }
   return ret;
 }
+
+// TODO remove globals..
 static int count = 0;
+static Color tl = {0, 0, 0};
+static Color bl = {255, 0, 0};
+static Color tr = {0, 255, 0};
+static Color br = {0, 0, 255};
+static ColorMix mixer(tl, bl, tr, br);
+
 // Time in ms. Starts at 0.
 void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
   count += 1;
-  int loc = (time / 33) % NUM_LEDS;
-  printf("run %d %d\n", loc, count);
-  memcpy_P(led_buff, first_image[loc], NUM_LEDS * 3);
+  int loc = (time / 33) % 100;
+  // printf("run %d %d, mix1 %d, mix2 %d\n", loc, count,
+  //        mixer.calculate_color_mix(0, 0).r, mixer.calculate_color_mix(0,
+  //        80).r);
+  // memcpy_P(led_buff, first_image[loc], NUM_LEDS * 3);
   // for (int i = 0; i < 12; i++) {
   //   printf("buff %d %d\n", i, led_buff[i]);
   // }
-  for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = runSingle(i, time, red, green, blue);
+  for (int i = 0; i < 50; i++) {
+    Color col = mixer.calculate_color_mix(i / 300.0f, loc / 100.f);
+    leds[i].r = col.r;
+    leds[i].g = col.g;
+    leds[i].b = col.b;
+  }
+  for (int i = 200; i < 210; i++) {
+    Color col = mixer.calculate_color_mix(i / 300.0f, loc / 100.f);
+    leds[i].r = col.r;
+    leds[i].g = col.g;
+    leds[i].b = col.b;
   }
   // for (int i = 0; i < NUM_LEDS; i++) {
   //   leds[i] = runSingle(i + loc_head, time, red, green, blue);
@@ -305,6 +325,10 @@ void LED_Init() {
   targetPalette = RainbowColors_p;
   currentPalette = RainbowColors_p;
   currentBlending = LINEARBLEND;
+  // for (int i = 0; i < 100; i++) {
+  //   Color col = mixer.calculate_color_mix(0.5f, i / 100.0f);
+  //   printf("colors loc=%d - %d %d %d\n", i, col.r, col.g, col.b);
+  // }
 }
 
 uint8_t get_brightness(bool friendExists) {
