@@ -16,8 +16,6 @@ constexpr int NUM_LEDS = 300;
 #define COLOR_ORDER GRB
 // TODO remove globals..
 CRGB leds[NUM_LEDS];
-static uint8_t led_buff1[300][3];
-static uint8_t led_buff2[300][3];
 static int count = 0;
 static CRGB tl = {0, 0, 0};
 static CRGB tr = {0, 255, 0};
@@ -28,9 +26,11 @@ constexpr float WIDTH_MULTIPLY = 4.f;
 constexpr float HEIGHT_MULTIPLY = 16.f;
 constexpr int IMAGE_HEIGHT = 300;
 constexpr int IMAGE_WIDTH = 300;
+static uint8_t led_buff1[IMAGE_WIDTH][3];
+static uint8_t led_buff2[IMAGE_WIDTH][3];
 
 // Different for each micro
-constexpr int LED_OFFSET = 0;
+constexpr int LED_OFFSET = 300;
 
 CRGB getColorBuff1(int index) {
   CRGB ret = {.r = 0, .b = 0, .g = 0};
@@ -58,11 +58,12 @@ void playImage(unsigned long time) {
                                        // two row of flash
   float y = loc / HEIGHT_MULTIPLY;
   int yi = y;
-  memcpy_P(led_buff1, first_image[yi], NUM_LEDS * 3);
-  memcpy_P(led_buff2, first_image[yi + 1], NUM_LEDS * 3);
+  memcpy_P(led_buff1, first_image[yi], IMAGE_WIDTH * 3);
+  memcpy_P(led_buff2, first_image[yi + 1], IMAGE_WIDTH * 3);
   // TODO check that we don't go over the width
   for (int i = 0; i < NUM_LEDS; i++) {
-    float x = i / WIDTH_MULTIPLY;
+    float x =
+        ((i + LED_OFFSET) % (NUM_LEDS * (int)WIDTH_MULTIPLY)) / WIDTH_MULTIPLY;
     int xi = x;
     CRGB tl = getColorBuff1(x);
     CRGB tr = getColorBuff1(x + 1);
