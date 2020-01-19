@@ -19,7 +19,7 @@ extern "C" {
 uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 struct __attribute__((packed)) DataStruct {
-  unsigned int time;
+  unsigned long time;
   unsigned int version;
   uint8_t friend_id;
   char text[31];
