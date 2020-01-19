@@ -119,11 +119,10 @@ CRGB runSingle(int index, unsigned long time, uint8_t red, uint8_t green,
 
 // TODO remove globals..
 static int count = 0;
-static Color tl = {0, 0, 0};
-static Color bl = {255, 0, 0};
-static Color tr = {0, 255, 0};
-static Color br = {0, 0, 255};
-static ColorMix mixer(tl, bl, tr, br);
+static CRGB tl = {0, 0, 0};
+static CRGB tr = {0, 255, 0};
+static CRGB bl = {255, 0, 0};
+static CRGB br = {0, 0, 255};
 
 // Time in ms. Starts at 0.
 void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
@@ -137,16 +136,10 @@ void runNeurons(unsigned long time, uint8_t red, uint8_t green, uint8_t blue) {
   //   printf("buff %d %d\n", i, led_buff[i]);
   // }
   for (int i = 0; i < 50; i++) {
-    Color col = mixer.calculate_color_mix(i / 300.0f, loc / 100.f);
-    leds[i].r = col.r;
-    leds[i].g = col.g;
-    leds[i].b = col.b;
+    leds[i] = calculate_color_mix(tl, tr, bl, br, i / 300.0f, loc / 100.f);
   }
-  for (int i = 200; i < 210; i++) {
-    Color col = mixer.calculate_color_mix(i / 300.0f, loc / 100.f);
-    leds[i].r = col.r;
-    leds[i].g = col.g;
-    leds[i].b = col.b;
+  for (int i = 280; i < 290; i++) {
+    leds[i] = calculate_color_mix(tl, tr, bl, br, i / 300.0f, loc / 100.f);
   }
   // for (int i = 0; i < NUM_LEDS; i++) {
   //   leds[i] = runSingle(i + loc_head, time, red, green, blue);
