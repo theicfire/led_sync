@@ -14,10 +14,14 @@ CRGB calculate_color_mix(CRGB c00, CRGB c10, CRGB c01, CRGB c11, float x,
                          float y) {
   CRGB ret = {0, 0, 0};
   if (x > 1.0f || y > 1.0f || x < 0 || y < 0) {
+    printf("out of bounds\n");
     return ret;
   }
   ret.r = bilinear_interp(c00.r, c10.r, c01.r, c11.r, x, y);
   ret.g = bilinear_interp(c00.g, c10.g, c01.g, c11.g, x, y);
   ret.b = bilinear_interp(c00.b, c10.b, c01.b, c11.b, x, y);
+  // printf("blue in: %d %d %d %d, x/y: %f %f. Output: %d\n", c00.b, c10.b,
+  // c01.b,
+  //        c11.b, x, y, ret.b);
   return ret;
 }
