@@ -15,7 +15,7 @@ constexpr int NUM_COLORS = 3;
 constexpr int ANIMATION_SECONDS = 10;
 constexpr int LED_PIN = 5;
 constexpr int NUM_LEDS = 300;
-#define LED_TYPE WS2811
+#define LED_TYPE WS2811 # TODO shouldn't this be WS2811 (or WS2811B)?
 #define COLOR_ORDER GRB
 // TODO remove globals..
 CRGB leds[NUM_LEDS];
