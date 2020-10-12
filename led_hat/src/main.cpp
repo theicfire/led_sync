@@ -4,6 +4,8 @@
 #include <Adafruit_Sensor.h>
 #include <ESP8266WiFi.h>
 
+#define MAX_DATA_LEN (5000)
+
 
 void waitForSerial() {
   while (!Serial) {
@@ -51,61 +53,72 @@ void setup(void) {
   Serial.print("Connected, IP address: ");
   Serial.println(WiFi.localIP());
   //if (client.connect("10.0.0.8", 9000))
-  if (client.connect("192.168.137.16", 9000))
-  {
-    Serial.println("connected!");
-  } else {
-    Serial.println("Failed to connect!");
-  }
   //client.setNoDelay(true);
 
 }
 
 int count = 0;
-uint8_t data[1400];
+int MSG_LEN = 7;
+uint8_t data[MAX_DATA_LEN];
 int data_loc = 0;
+uint8_t skipped_data_count = 0;
 
 void add_data(uint16_t x, uint16_t y, uint16_t z) {
-  if (data_loc >= 1400 - 7) {
+  if (data_loc >= MAX_DATA_LEN - MSG_LEN - 1) {
+    if (skipped_data_count < 0xFF) {
+      skipped_data_count += 1;
+    }
     return;
   }
-  data[data_loc + 0] = x >> 8;
-  data[data_loc + 1] = x & 0xFF;
-  data[data_loc + 2] = y >> 8;
-  data[data_loc + 3] = y & 0xFF;
-  data[data_loc + 4] = z >> 8;
-  data[data_loc + 5] = z & 0xFF;
-  data_loc += 6;
+  data[data_loc + 0] = skipped_data_count;
+  data[data_loc + 1] = x >> 8;
+  data[data_loc + 2] = x & 0xFF;
+  data[data_loc + 3] = y >> 8;
+  data[data_loc + 4] = y & 0xFF;
+  data[data_loc + 5] = z >> 8;
+  data[data_loc + 6] = z & 0xFF;
+  //data[data_loc + 0] = 55;
+  //data[data_loc + 1] = count;
+  //data[data_loc + 2] = count;
+  //data[data_loc + 3] = count;
+  //data[data_loc + 4] = count;
+  //data[data_loc + 5] = count;
+  //data[data_loc + 6] = count;
+  data_loc += MSG_LEN;
 }
 
 void loop() {
+  const char* addr = "192.168.79.16";
+  if (!client.connected()) {
+    if (client.connect(addr, 9000))
+    {
+      Serial.println("connected!");
+    } else {
+      Serial.print("Failed to connect to ");
+      Serial.println(addr);
+      return;
+    }
+  }
   count += 1;
-  // Read the 'raw' data in 14-bit counts
-  //Serial.print("read ");
-  //Serial.println(count);
-  mma.read();
+  mma.read(); // Read the 'raw' data in 14-bit counts
   add_data(mma.x, mma.y, mma.z);
-  Serial.print("X:\t"); Serial.print(mma.x);
-  //Serial.print("\tY:\t"); Serial.print(mma.y);
-  //Serial.print("\tZ:\t"); Serial.print(mma.z);
-  Serial.println();
-
-  /* Get a new sensor event */
-  //sensors_event_t event;
-  //mma.getEvent(&event);
-
-  //[> Display the results (acceleration is measured in m/s^2) <]
-  //Serial.print(event.acceleration.x); Serial.print("\t");
-  //Serial.print(event.acceleration.y); Serial.print("\t");
-  //Serial.print(event.acceleration.z); Serial.print("\t");
-  //Serial.println("m/s^2 ");
+  //Serial.print("X:\t"); Serial.print(mma.x);
+  //Serial.println();
 
   int to_send = min(client.availableForWrite(), (size_t) data_loc);
-  if (client.connected() && to_send > 0) {
+  to_send = (to_send / MSG_LEN) * MSG_LEN; // Full messages at a time
+  //to_send = min(to_send, 21); // for testing..
+  if (to_send > 0) {
     Serial.print("send: ");
     Serial.println(to_send);
     client.write(data, to_send);
     Serial.println("done send");
+    if (data_loc > to_send) {
+      Serial.println("reordering data");
+      for (int i = to_send; i < data_loc; i++) {
+        data[i - to_send] = data[i];
+      }
+    }
     data_loc = 0;
   }
   delay(10);
