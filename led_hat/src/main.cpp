@@ -88,7 +88,7 @@ void add_data(uint16_t x, uint16_t y, uint16_t z) {
 }
 
 void loop() {
-  const char* addr = "192.168.79.16";
+  const char* addr = "192.168.175.16";
   if (!client.connected()) {
     if (client.connect(addr, 9000))
     {

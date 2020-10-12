@@ -45,6 +45,7 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csvWriter = createCsvWriter({
     path: 'entries.csv',
     header: [
+        {id: 'skipped_data_count', title: 'skipped_data_count'},
         {id: 'x', title: 'x'},
         {id: 'y', title: 'y'},
         {id: 'z', title: 'z'},
@@ -73,7 +74,7 @@ function handleConnection(conn) {
     const x = to_signed_int(data[1], data[2]);
     const y = to_signed_int(data[3], data[4]);
     const z = to_signed_int(data[5], data[6]);
-    csvWriter.writeRecords([{x, y, z}]).then(() => {
+    csvWriter.writeRecords([{skipped_data_count, x, y, z}]).then(() => {
       console.log('skipped', skipped_data_count, 'data', x, y, z);
     });;
   });
