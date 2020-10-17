@@ -4,6 +4,9 @@
 #include <Adafruit_Sensor.h>
 #include <ESP8266WiFi.h>
 
+#include "data.h"
+#include "angle_estimate.h"
+
 #define MAX_DATA_LEN (5000)
 
 
@@ -13,17 +16,28 @@ void waitForSerial() {
   }
 }
 
+void calc_on_recorded_data() {
+  AngleEstimate estimator;
+  for (unsigned int i = 0; i < sizeof(recorded_accels) / sizeof(recorded_accels[0]); i++) {
+    estimator.add_accel(recorded_accels[i][0], recorded_accels[i][1],recorded_accels[i][2]);
+    Serial.print(i);
+    Serial.print(":\t");
+    Serial.print(recorded_accels[i][0]);
+    Serial.print('\t');
+    Serial.print(recorded_accels[i][1]);
+    Serial.print('\t');
+    Serial.print(recorded_accels[i][2]);
+    Serial.print('\t');
+    Serial.print(estimator.get_angle());
+    Serial.println();
+    delay(10);
+  }
+}
+
 Adafruit_MMA8451 mma = Adafruit_MMA8451();
 WiFiClient client;
 
-void setup(void) {
-  delay( 3000 ); // power-up safety delay for LEDs, TODO is this necessary?
-  Serial.begin(115200);
-  waitForSerial();
-
-  Serial.println("Adafruit MMA8451 test!");
-
-
+void setup_accel() {
   if (! mma.begin()) {
     Serial.println("Couldnt start");
     while (1);
@@ -37,6 +51,9 @@ void setup(void) {
   Serial.println("G");
   Serial.print("Rate = "); Serial.println(mma.getDataRate());
 
+}
+
+void setup_wifi() {
   //WiFi.begin("Baba Ganoush (SS)", "PlsNoTorrent");
   WiFi.begin("chaseme", "gobubbles");
 
@@ -54,6 +71,20 @@ void setup(void) {
   Serial.println(WiFi.localIP());
   //if (client.connect("10.0.0.8", 9000))
   //client.setNoDelay(true);
+
+}
+
+void setup(void) {
+  delay( 3000 ); // power-up safety delay for LEDs, TODO is this necessary?
+  Serial.begin(115200);
+  waitForSerial();
+
+  Serial.println("Swing!");
+  //setup_accel();
+  //setup_wifi();
+
+  calc_on_recorded_data();
+  Serial.println("Done");
 
 }
 
@@ -77,17 +108,11 @@ void add_data(uint16_t x, uint16_t y, uint16_t z) {
   data[data_loc + 4] = y & 0xFF;
   data[data_loc + 5] = z >> 8;
   data[data_loc + 6] = z & 0xFF;
-  //data[data_loc + 0] = 55;
-  //data[data_loc + 1] = count;
-  //data[data_loc + 2] = count;
-  //data[data_loc + 3] = count;
-  //data[data_loc + 4] = count;
-  //data[data_loc + 5] = count;
-  //data[data_loc + 6] = count;
   data_loc += MSG_LEN;
 }
 
 void loop() {
+  return;
   const char* addr = "192.168.175.16";
   if (!client.connected()) {
     if (client.connect(addr, 9000))
