@@ -21,4 +21,8 @@ class AngleEstimate {
   unsigned long last_smaller_data_index_;
   unsigned long last_larger_data_index_;
   double avg_mag_;
+
+  int last_period_ = 0;
+  int switch_index_ = 0;
+  double last_angle_ = 0;
 };

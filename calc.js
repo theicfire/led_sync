@@ -73,7 +73,7 @@ class AngleEstimate {
   }
 
   get_mag(x, y, z) {
-    return Math.sqrt(Math.pow(x, 2), Math.pow(y, 2), Math.pow(z, 2));
+    return Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
   }
 
   get_angle() {
