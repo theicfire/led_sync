@@ -183,8 +183,8 @@ void loop() {
   } else {
     uint16_t mag = Radio_GetRecentMag();
     if (mag != 0) {
-      Serial.print("Mag: ");
-      Serial.println(mag);
+      //Serial.print("Mag: ");
+      //Serial.println(mag);
       estimator.add_mag(mag);
       LED_Update(estimator.get_angle());
     }

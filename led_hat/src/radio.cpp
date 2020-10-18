@@ -51,6 +51,13 @@ void sendData(uint16_t swing_mag) {
 
 void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
   memcpy(&receivedData, incomingData, sizeof(receivedData));
+  if (receivedData.seq_no != seq_no + 1) {
+    Serial.print("Expected seqno ");
+    Serial.print(seq_no + 1);
+    Serial.print(" but got ");
+    Serial.println(receivedData.seq_no);
+  }
+  seq_no = receivedData.seq_no;
   //Serial.print("seqno: ");
   //Serial.println(receivedData.seq_no);
 }
