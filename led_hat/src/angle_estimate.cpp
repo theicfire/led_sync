@@ -1,6 +1,10 @@
-//#include <Arduino.h>
+#ifdef ARDUINO
+  #include <Arduino.h>
+#else
+  #include "math.h"
+  #define min fmin
+#endif
 #include "angle_estimate.h"
-#include "math.h"
 
 void AngleEstimate::add_accel(int16_t x, int16_t y, int16_t z) {
   double mag = get_mag(x, y, z);
@@ -57,6 +61,7 @@ void AngleEstimate::recalc_angle() {
       if (switch_index_ > 0) {
         last_angle_ = before_angle;
         last_period_ = current_index_ - switch_index_;
+        //printf("Period now %d\n", last_period_);
       }
       switch_index_ = current_index_;
     }
@@ -69,7 +74,7 @@ double AngleEstimate::get_mag(int16_t x, int16_t y, int16_t z) {
 }
 
 double AngleEstimate::get_angle() {
-    int TIME_SHIFT = 10; // TODO change..
+    int TIME_SHIFT = 0; // TODO change..
     int steps_past_last = current_index_ - switch_index_;
     if (last_period_ > 0 && current_angle_ == 1) {
       if (steps_past_last < last_period_ / 2 - TIME_SHIFT) {
@@ -77,7 +82,7 @@ double AngleEstimate::get_angle() {
         double run = (last_period_ / 2) - TIME_SHIFT;
         double m = rise / run;
         double b = last_angle_;
-        return fmin(1, m * steps_past_last + b);
+        return min(1.0, m * steps_past_last + b);
       } else {
         double rise = -2;
         double run = (last_period_);
@@ -99,12 +104,13 @@ double AngleEstimate::get_angle() {
         double m = rise / run;
         double b = -1;
         double steps = (steps_past_last - (last_period_ / 2 - TIME_SHIFT));
-        return fmin(1, m * steps + b);
+        return min(1.0, m * steps + b);
       }
     }
     return 0;
 }
 
+#ifndef ARDUINO
 #include "data.h"
 int main() {
   AngleEstimate estimator;
@@ -114,3 +120,4 @@ int main() {
   }
   return 0;
 }
+#endif
