@@ -96,7 +96,6 @@ void setup(void) {
   } else if (IS_LEADER) {
     setup_accel();
     Radio_Init();
-    LED_Init();
   } else {
     Radio_Init();
     LED_Init();
@@ -170,15 +169,11 @@ void loop() {
     mma.read();
     send_data(mma.x, mma.y, mma.z);
   } else if (IS_LEADER) {
-    //mma.read();
-    //uint16_t swing_mag = AngleEstimate::get_mag(mma.x, mma.y, mma.z);
-    //Radio_Update(swing_mag);
-    delay(500); // So that the total loop is running at 100mhz, for the accelerometer.
-    Radio_Update(count);
-    Radio_Update(count);
-    Radio_Update(count);
-    Radio_Update(count);
-    count += 1;
+    mma.read();
+    uint16_t swing_mag = AngleEstimate::get_mag(mma.x, mma.y, mma.z);
+    Radio_Update(swing_mag);
+    delay(8);
+
     //unsigned long end__us = micros();
     //if (count % 10 == 0) {
       //Serial.println(mag);

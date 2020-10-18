@@ -20,6 +20,7 @@ uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 struct __attribute__((packed)) DataStruct {
   unsigned int version;
+  uint16_t seq_no;
   uint16_t swing_mag;
   char text[31];
 };
@@ -32,6 +33,7 @@ bool friendNewlyFound = false;
 bool quickRespond = false;
 unsigned long friendTimeout = 5000;
 unsigned long lastSeenFriendTime = 0;
+uint16_t seq_no = 0;
 
 void initVariant() {
 }
@@ -39,14 +41,18 @@ void initVariant() {
 void sendData(uint16_t swing_mag) {
   sendingData.version = 1;
   sendingData.swing_mag = swing_mag;
+  sendingData.seq_no = seq_no;
   uint8_t byteArray[sizeof(sendingData)];
   memcpy(byteArray, &sendingData, sizeof(sendingData));
   esp_now_send(broadcastMac, byteArray, sizeof(sendingData)); // NULL means send to all peers
   //Serial.println("Loop sent data");
+  seq_no += 1;
 }
 
 void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
   memcpy(&receivedData, incomingData, sizeof(receivedData));
+  //Serial.print("seqno: ");
+  //Serial.println(receivedData.seq_no);
 }
 
 uint16_t Radio_GetRecentMag() {
