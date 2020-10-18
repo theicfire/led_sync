@@ -6,12 +6,12 @@
 #endif
 #include "angle_estimate.h"
 
-static double get_mag(int16_t x, int16_t y, int16_t z) {
+double AngleEstimate::get_mag(int16_t x, int16_t y, int16_t z) {
   return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
 }
 
 void AngleEstimate::add_accel(int16_t x, int16_t y, int16_t z) {
-  double mag = get_mag(x, y, z);
+  double mag = AngleEstimate::get_mag(x, y, z);
   // TODO random angles..
   avg_mag_ = .4 * mag + .6 * avg_mag_;
   if (current_index_ < 90) {
@@ -117,7 +117,7 @@ int main() {
   AngleEstimate estimator;
   for (unsigned int i = 0; i < sizeof(recorded_accels) / sizeof(recorded_accels[0]); i++) {
     estimator.add_accel(recorded_accels[i][0], recorded_accels[i][1],recorded_accels[i][2]);
-    printf("%.3f\t%f\n", get_mag(recorded_accels[i][0], recorded_accels[i][1],recorded_accels[i][2]), estimator.get_angle());
+    printf("%.3f\t%f\n", AngleEstimate::get_mag(recorded_accels[i][0], recorded_accels[i][1],recorded_accels[i][2]), estimator.get_angle());
   }
   return 0;
 }

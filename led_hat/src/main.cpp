@@ -4,13 +4,18 @@
 #include <Adafruit_Sensor.h>
 #include <ESP8266WiFi.h>
 
-#include "data.h"
 #include "angle_estimate.h"
+
+//#define USE_RECORDED_DATA
+#ifdef USE_RECORDED_DATA
+#include "data.h"
+#endif
 
 #define MAX_DATA_LEN (5000)
 
 Adafruit_MMA8451 mma = Adafruit_MMA8451();
 WiFiClient client;
+const bool RECORD_DATA = true;
 
 void waitForSerial() {
   while (!Serial) {
@@ -18,23 +23,21 @@ void waitForSerial() {
   }
 }
 
+#ifdef USE_RECORDED_DATA
 void calc_on_recorded_data() {
   AngleEstimate estimator;
+  Serial.println("Calculate angle based on recorded data");
   for (unsigned int i = 0; i < sizeof(recorded_accels) / sizeof(recorded_accels[0]); i++) {
     estimator.add_accel(recorded_accels[i][0], recorded_accels[i][1],recorded_accels[i][2]);
-    Serial.print(i);
-    Serial.print(":\t");
-    Serial.print(recorded_accels[i][0]);
-    Serial.print('\t');
-    Serial.print(recorded_accels[i][1]);
-    Serial.print('\t');
-    Serial.print(recorded_accels[i][2]);
-    Serial.print('\t');
+    Serial.print(AngleEstimate::get_mag(recorded_accels[i][0], recorded_accels[i][1], recorded_accels[i][2]));
+    Serial.print("\t");
     Serial.print(estimator.get_angle());
     Serial.println();
     delay(10);
   }
+  Serial.println("Done");
 }
+#endif
 
 
 void setup_accel() {
@@ -79,11 +82,15 @@ void setup(void) {
   waitForSerial();
 
   Serial.println("Swing!");
-  //setup_accel();
-  //setup_wifi();
 
-  calc_on_recorded_data();
-  Serial.println("Done");
+#ifdef USE_RECORDED_DATA
+  //calc_on_recorded_data();
+#else
+  setup_accel();
+  if (RECORD_DATA) {
+    setup_wifi();
+  }
+#endif
 
 }
 
@@ -110,28 +117,11 @@ void add_data(uint16_t x, uint16_t y, uint16_t z) {
   data_loc += MSG_LEN;
 }
 
-void loop() {
-  return;
-  const char* addr = "192.168.175.16";
-  if (!client.connected()) {
-    if (client.connect(addr, 9000))
-    {
-      Serial.println("connected!");
-    } else {
-      Serial.print("Failed to connect to ");
-      Serial.println(addr);
-      return;
-    }
-  }
-  count += 1;
-  mma.read(); // Read the 'raw' data in 14-bit counts
-  add_data(mma.x, mma.y, mma.z);
-  //Serial.print("X:\t"); Serial.print(mma.x);
-  //Serial.println();
+void send_data(uint16_t x, uint16_t y, uint16_t z) {
+  add_data(x, y, z);
 
   int to_send = min(client.availableForWrite(), (size_t) data_loc);
   to_send = (to_send / MSG_LEN) * MSG_LEN; // Full messages at a time
-  //to_send = min(to_send, 21); // for testing..
   if (to_send > 0) {
     Serial.print("send: ");
     Serial.println(to_send);
@@ -144,6 +134,30 @@ void loop() {
       }
     }
     data_loc = 0;
+  }
+}
+
+void loop() {
+#ifdef USE_RECORDED_DATA
+  return;
+#endif
+  const char* addr = "192.168.62.16";
+  if (!client.connected()) {
+    if (client.connect(addr, 9000))
+    {
+      Serial.println("connected!");
+    } else {
+      Serial.print("Failed to connect to ");
+      Serial.println(addr);
+      return;
+    }
+  }
+  count += 1;
+  mma.read(); // Read the 'raw' data in 14-bit counts
+  if (RECORD_DATA) {
+    send_data(mma.x, mma.y, mma.z);
+  } else {
+
   }
   delay(10);
 }

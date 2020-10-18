@@ -21,6 +21,7 @@ class AngleEstimate {
   void add_accel(int16_t x, int16_t y, int16_t z);
   // From -1 to 1. 0 for no angle. Starts at 0.
   double get_angle();
+  static double get_mag(int16_t x, int16_t y, int16_t z);
 
   private:
   void recalc_angle();
