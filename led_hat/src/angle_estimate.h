@@ -19,6 +19,7 @@ class AngleEstimate {
     last_angle_ = 0;
   }
   void add_accel(int16_t x, int16_t y, int16_t z);
+  void add_mag(double mag);
   // From -1 to 1. 0 for no angle. Starts at 0.
   double get_angle();
   static double get_mag(int16_t x, int16_t y, int16_t z);

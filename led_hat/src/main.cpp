@@ -5,6 +5,8 @@
 #include <ESP8266WiFi.h>
 
 #include "angle_estimate.h"
+#include "led.h"
+#include "radio.h"
 
 //#define USE_RECORDED_DATA
 #ifdef USE_RECORDED_DATA
@@ -15,7 +17,9 @@
 
 Adafruit_MMA8451 mma = Adafruit_MMA8451();
 WiFiClient client;
-const bool RECORD_DATA = true;
+// TODO make enum
+const bool RECORD_DATA = false;
+const bool IS_LEADER = false;
 
 void waitForSerial() {
   while (!Serial) {
@@ -42,7 +46,7 @@ void calc_on_recorded_data() {
 
 void setup_accel() {
   if (! mma.begin()) {
-    Serial.println("Couldnt start");
+    Serial.println("Failed to start accelerometer");
     while (1);
   }
   Serial.println("MMA8451 found!");
@@ -86,15 +90,21 @@ void setup(void) {
 #ifdef USE_RECORDED_DATA
   //calc_on_recorded_data();
 #else
-  setup_accel();
   if (RECORD_DATA) {
+    setup_accel();
     setup_wifi();
+  } else if (IS_LEADER) {
+    setup_accel();
+    Radio_Init();
+    LED_Init();
+  } else {
+    Radio_Init();
+    LED_Init();
   }
 #endif
 
 }
 
-int count = 0;
 int MSG_LEN = 7;
 uint8_t data[MAX_DATA_LEN];
 int data_loc = 0;
@@ -137,27 +147,52 @@ void send_data(uint16_t x, uint16_t y, uint16_t z) {
   }
 }
 
+AngleEstimate estimator;
+int count = 0;
+unsigned long last__us;
 void loop() {
 #ifdef USE_RECORDED_DATA
   return;
 #endif
-  const char* addr = "192.168.62.16";
-  if (!client.connected()) {
-    if (client.connect(addr, 9000))
-    {
-      Serial.println("connected!");
-    } else {
-      Serial.print("Failed to connect to ");
-      Serial.println(addr);
-      return;
+  if (RECORD_DATA) {
+    const char* addr = "192.168.62.16";
+    if (!client.connected()) {
+      if (client.connect(addr, 9000))
+      {
+        Serial.println("connected!");
+      } else {
+        Serial.print("Failed to connect to ");
+        Serial.println(addr);
+        delay(500);
+        return;
+      }
+    }
+    mma.read();
+    send_data(mma.x, mma.y, mma.z);
+  } else if (IS_LEADER) {
+    //mma.read();
+    //uint16_t swing_mag = AngleEstimate::get_mag(mma.x, mma.y, mma.z);
+    //Radio_Update(swing_mag);
+    delay(500); // So that the total loop is running at 100mhz, for the accelerometer.
+    Radio_Update(count);
+    Radio_Update(count);
+    Radio_Update(count);
+    Radio_Update(count);
+    count += 1;
+    //unsigned long end__us = micros();
+    //if (count % 10 == 0) {
+      //Serial.println(mag);
+      //Serial.println((uint16_t) mag);
+    //}
+    //last__us = end__us;
+  } else {
+    uint16_t mag = Radio_GetRecentMag();
+    if (mag != 0) {
+      Serial.print("Mag: ");
+      Serial.println(mag);
+      estimator.add_mag(mag);
+      LED_Update(estimator.get_angle());
     }
   }
-  count += 1;
-  mma.read(); // Read the 'raw' data in 14-bit counts
-  if (RECORD_DATA) {
-    send_data(mma.x, mma.y, mma.z);
-  } else {
-
-  }
-  delay(10);
 }
+

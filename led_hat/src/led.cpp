@@ -209,7 +209,7 @@ void runMeteorRain(int index, byte red, byte green, byte blue) {
     uint8_t meteorSize = 10;
     uint8_t meteorTrailDecay = 64;
     // 2x leds to have the tail of the meteor work correctly
-    int i = index % (NUM_LEDS * 2);
+    //int i = index % (NUM_LEDS * 2);
     // fade brightness all LEDs one step
     for(int j=0; j<NUM_LEDS; j++) {
         if(random(10)>5) {
@@ -313,24 +313,29 @@ uint8_t get_brightness(bool friendExists) {
 
 }
 
-void LED_Update()
+void LED_Update(double swing_angle)
 {
-    static unsigned long last_brightness_update_time = 0;
-    uint8_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
+    //static unsigned long last_brightness_update_time = 0;
+    //uint8_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
 
-    int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
-    if (friendExists) {
-      ChooseFriendGradient(Time_GetTime(), 5);
-    } else {
-      ChooseLonerGradient(Time_GetTime(), 5);
-    }
-    nblendPaletteTowardPalette( currentPalette, targetPalette, 48);
+    //int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
+    //if (friendExists) {
+      //ChooseFriendGradient(Time_GetTime(), 5);
+    //} else {
+      //ChooseLonerGradient(Time_GetTime(), 5);
+    //}
+    //nblendPaletteTowardPalette( currentPalette, targetPalette, 48);
 
 
-    uint8_t brightness = get_brightness(friendExists);
-    //Serial.println(brightness);
-    runPaletteGradient(index, brightness);
+    //uint8_t brightness = get_brightness(friendExists);
+    ////Serial.println(brightness);
+    //runPaletteGradient(index, brightness);
 
+
+    uint8_t colorIndex = ((swing_angle + 1) / 2) * 256;
+    uint8_t brightness = 150;
+    CRGB color = ColorFromPalette( RainbowColors_p, colorIndex, brightness, LINEARBLEND);
+    fill_solid(leds, NUM_LEDS, color);
     FastLED.show();
 }
 

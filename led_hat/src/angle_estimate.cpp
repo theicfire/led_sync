@@ -12,6 +12,10 @@ double AngleEstimate::get_mag(int16_t x, int16_t y, int16_t z) {
 
 void AngleEstimate::add_accel(int16_t x, int16_t y, int16_t z) {
   double mag = AngleEstimate::get_mag(x, y, z);
+  add_mag(mag);
+}
+
+void AngleEstimate::add_mag(double mag) {
   // TODO random angles..
   avg_mag_ = .4 * mag + .6 * avg_mag_;
   if (current_index_ < 90) {

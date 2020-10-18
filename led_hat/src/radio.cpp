@@ -19,9 +19,8 @@ extern "C" {
 uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 struct __attribute__((packed)) DataStruct {
-  unsigned int time;
   unsigned int version;
-  uint8_t friend_id;
+  uint16_t swing_mag;
   char text[31];
 };
 DataStruct receivedData;
@@ -37,71 +36,45 @@ unsigned long lastSeenFriendTime = 0;
 void initVariant() {
 }
 
-void sendData() {
-  sendingData.time = Time_GetTime();
+void sendData(uint16_t swing_mag) {
   sendingData.version = 1;
-  sendingData.friend_id = FRIEND_ID;
+  sendingData.swing_mag = swing_mag;
   uint8_t byteArray[sizeof(sendingData)];
   memcpy(byteArray, &sendingData, sizeof(sendingData));
   esp_now_send(broadcastMac, byteArray, sizeof(sendingData)); // NULL means send to all peers
-  Serial.println("Loop sent data");
+  //Serial.println("Loop sent data");
 }
 
 void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t len) {
   memcpy(&receivedData, incomingData, sizeof(receivedData));
-  if (FRIEND_ID == 0 || receivedData.friend_id != FRIEND_ID) {
-    lastSeenFriendTime = millis();
-    if (!friendExists) {
-      friendExists = true;
-      friendNewlyFound = true;
-      quickRespond = true;
-    }
-  }
-  if (abs(Time_GetTime() - receivedData.time) > 50) {
-    quickRespond = true;
-  }
-  unsigned long avg = (Time_GetTime() + receivedData.time) / 2;
-
-  Serial.print("Old time ");
-  Serial.print(Time_GetTime());
-  Serial.print(" New time ");
-  Serial.print(receivedData.time);
-  Serial.print(" Avg ");
-  Serial.print(avg);
-  Serial.println();
-
-  Time_SetTime(avg);
-
-  Serial.print("NewMsg ");
-  Serial.print("MacAddr ");
-  for (byte n = 0; n < 6; n++) {
-    Serial.print(senderMac[n], HEX);
-  }
-  Serial.print("  MsgLen ");
-  Serial.print(len);
-  Serial.print("  Text ");
-  Serial.print(receivedData.text);
-  Serial.print("  Time ");
-  Serial.print(receivedData.time);
-  Serial.println();
 }
 
-void Radio_Update() {
-  if (friendNewlyFound) {
-    Serial.println("Found a friend!");
-    friendNewlyFound = false;
+uint16_t Radio_GetRecentMag() {
+  if (receivedData.swing_mag != 0) {
+    uint16_t ret = receivedData.swing_mag;
+    receivedData.swing_mag = 0;
+    return ret;
   }
-  if (quickRespond) {
-    sendData();
-    quickRespond = false;
-  } else if (millis() > sendIntervalMillis && millis() - lastSentMillis >= sendIntervalMillis) {
-    lastSentMillis = millis();
-    sendData();
-  }
-  if (friendExists && lastSeenFriendTime > 0 && millis() - lastSeenFriendTime > friendTimeout) {
-    Serial.println("Friend timeout!");
-    friendExists = false;
-  }
+  return 0;
+}
+
+void Radio_Update(uint16_t swing_mag) {
+  sendData(swing_mag);
+  //if (friendNewlyFound) {
+    //Serial.println("Found a friend!");
+    //friendNewlyFound = false;
+  //}
+  //if (quickRespond) {
+    //sendData();
+    //quickRespond = false;
+  //} else if (millis() > sendIntervalMillis && millis() - lastSentMillis >= sendIntervalMillis) {
+    //lastSentMillis = millis();
+    //sendData();
+  //}
+  //if (friendExists && lastSeenFriendTime > 0 && millis() - lastSeenFriendTime > friendTimeout) {
+    //Serial.println("Friend timeout!");
+    //friendExists = false;
+  //}
   // TODO delay to save battery.. I think?
 }
 
@@ -114,7 +87,7 @@ void Radio_Init() {
   // role set to COMBO so it can send and receive - not sure this is essential
   esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
 
-  Serial.println("Starting Master");
+  Serial.println("Starting ESPNow");
 
   WiFi.mode(WIFI_STA); // Station mode for esp-now controller
 
