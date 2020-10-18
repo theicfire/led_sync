@@ -23,7 +23,6 @@ class AngleEstimate {
   double get_angle();
 
   private:
-  double get_mag(int16_t x, int16_t y, int16_t z);
   void recalc_angle();
 
   double start_mag_;

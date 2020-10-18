@@ -9,6 +9,8 @@
 
 #define MAX_DATA_LEN (5000)
 
+Adafruit_MMA8451 mma = Adafruit_MMA8451();
+WiFiClient client;
 
 void waitForSerial() {
   while (!Serial) {
@@ -34,8 +36,6 @@ void calc_on_recorded_data() {
   }
 }
 
-Adafruit_MMA8451 mma = Adafruit_MMA8451();
-WiFiClient client;
 
 void setup_accel() {
   if (! mma.begin()) {
@@ -71,7 +71,6 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
   //if (client.connect("10.0.0.8", 9000))
   //client.setNoDelay(true);
-
 }
 
 void setup(void) {
