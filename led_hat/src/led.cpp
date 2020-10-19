@@ -6,7 +6,7 @@
 #include "friend.h"
 
 #define LED_PIN     5
-#define NUM_LEDS    300
+#define NUM_LEDS    10
 //#define BRIGHTNESS  100
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
@@ -14,6 +14,7 @@ CRGB leds[NUM_LEDS];
 
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
+CRGBPalette16 swingPalette;
 TBlendType    currentBlending;
 
 #define UPDATES_PER_SECOND 50
@@ -160,6 +161,10 @@ DEFINE_GRADIENT_PALETTE( only_green ) {
     0, 0,255,0,
     255, 0,255,0 };
 
+DEFINE_GRADIENT_PALETTE( swing_p ) {
+    0, 0,255,0,
+    255, 0,0,255 };
+
 DEFINE_GRADIENT_PALETTE( only_blue ) {
     0, 0,0,255,
     255, 0,0,255 };
@@ -288,6 +293,7 @@ void LED_Init() {
 
     targetPalette = RainbowColors_p;
     currentPalette = RainbowColors_p;
+    swingPalette = swing_p;
     currentBlending = LINEARBLEND;
 }
 
@@ -334,7 +340,7 @@ void LED_Update(double swing_angle)
 
     uint8_t colorIndex = ((swing_angle + 1) / 2) * 256;
     uint8_t brightness = 150;
-    CRGB color = ColorFromPalette( RainbowColors_p, colorIndex, brightness, LINEARBLEND);
+    CRGB color = ColorFromPalette( swingPalette, colorIndex, brightness, LINEARBLEND);
     fill_solid(leds, NUM_LEDS, color);
     FastLED.show();
 }
