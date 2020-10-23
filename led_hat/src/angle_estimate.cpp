@@ -3,6 +3,7 @@
 #else
 #include "math.h"
 #define min fmin
+#define max fmax
 #endif
 #include "angle_estimate.h"
 
@@ -16,25 +17,72 @@ void AngleEstimate::add_accel(int16_t x, int16_t y, int16_t z) {
 }
 
 void AngleEstimate::add_mag(double mag) {
-  // TODO random angles..
-  avg_mag_ = .4 * mag + .6 * avg_mag_;
-  if (current_index_ < 90) {
-    start_mag_ = mag;
-    current_index_ += 1;
-    return;
-  }
-
-  // printf("index %d has mag %f\n", current_index_, mag);
-  if (mag < start_mag_) {
-    last_smaller_data_index_ = current_index_;
-  } else {
-    last_larger_data_index_ = current_index_;
+  double alpha = 0.05;
+  avg_mag_ = (alpha * mag) + (1 - alpha) * avg_mag_;
+  if (swing_state_ == VALLEY_SEARCHING) {
+    if (mag < 3200 && current_index_ - previous_lowest_index_ > 50) {
+      swing_state_ = MAYBE_VALLEY;
+      lowest_index = current_index_;
+      lowest_mag_ = mag;
+    }
+  } else if (swing_state_ == MAYBE_VALLEY) {
+    if (mag > 5000) {
+      swing_state_ = VALLEY_SEARCHING;
+      lowest_index = -1;
+      lowest_mag_ = -1;
+    } else if (mag < lowest_mag_) {
+      lowest_index = current_index_;
+      lowest_mag_ = mag;
+    } else if (current_index_ - lowest_index > 10) {
+      // found lowest. It was at lowest_index. Calculate period.
+      last_period_ = lowest_index - previous_lowest_index_;
+      // printf("Period now %d\n", last_period_);
+      previous_lowest_index_ = lowest_index;
+      angle_increasing_ = !angle_increasing_;
+      swing_state_ = VALLEY_SEARCHING;
+      lowest_index = -1;
+      lowest_mag_ = -1;
+    }
   }
   recalc_angle();
   current_index_ += 1;
 }
 
-void AngleEstimate::recalc_angle() {
+void AngleEstimate::recalc_angle() {}
+
+double AngleEstimate::get_angle() {
+  double angle = inner_get_angle();
+  double MAX_STEP = 0.02;
+  if (last_angle_ > angle && last_angle_ - angle > MAX_STEP) {
+    last_angle_ -= MAX_STEP;
+    return last_angle_;
+  }
+  if (last_angle_ < angle && last_angle_ - angle < -MAX_STEP) {
+    last_angle_ += MAX_STEP;
+    return last_angle_;
+  }
+  last_angle_ = angle;
+  return last_angle_;
+}
+
+double AngleEstimate::inner_get_angle() {
+  if (last_period_ != 0) {
+    int since_last = current_index_ - previous_lowest_index_;
+    if (since_last > last_period_) {
+      if (since_last > 300) {
+        return 0;
+      }
+      return angle_increasing_ ? 1 : -1;
+    }
+    if (angle_increasing_) {
+      return (since_last * 1.0 / last_period_) * 2 - 1;
+    }
+    return (since_last * 1.0 / last_period_) * -2 + 1;
+  }
+  return 0;
+}
+
+void AngleEstimate::recalc_angle2() {
   double before_angle = get_angle();
   const int COMPARE_WINDOW = 10;
   bool smaller = false;
@@ -76,7 +124,7 @@ void AngleEstimate::recalc_angle() {
   }
 }
 
-double AngleEstimate::get_angle() {
+double AngleEstimate::get_angle2() {
   int TIME_SHIFT = 0;  // TODO change..
   int steps_past_last = current_index_ - switch_index_;
   if (last_period_ > 0 && current_angle_ == 1) {
