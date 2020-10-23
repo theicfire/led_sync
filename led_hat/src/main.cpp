@@ -1,8 +1,8 @@
-#include <Arduino.h>
-#include <Wire.h>
 #include <Adafruit_MMA8451.h>
 #include <Adafruit_Sensor.h>
+#include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <Wire.h>
 
 #include "angle_estimate.h"
 #include "led.h"
@@ -31,9 +31,12 @@ void waitForSerial() {
 void calc_on_recorded_data() {
   AngleEstimate estimator;
   Serial.println("Calculate angle based on recorded data");
-  for (unsigned int i = 0; i < sizeof(recorded_accels) / sizeof(recorded_accels[0]); i++) {
-    estimator.add_accel(recorded_accels[i][0], recorded_accels[i][1],recorded_accels[i][2]);
-    Serial.print(AngleEstimate::get_mag(recorded_accels[i][0], recorded_accels[i][1], recorded_accels[i][2]));
+  for (unsigned int i = 0;
+       i < sizeof(recorded_accels) / sizeof(recorded_accels[0]); i++) {
+    estimator.add_accel(recorded_accels[i][0], recorded_accels[i][1],
+                        recorded_accels[i][2]);
+    Serial.print(AngleEstimate::get_mag(
+        recorded_accels[i][0], recorded_accels[i][1], recorded_accels[i][2]));
     Serial.print("\t");
     Serial.print(estimator.get_angle());
     Serial.println();
@@ -43,52 +46,52 @@ void calc_on_recorded_data() {
 }
 #endif
 
-
 void setup_accel() {
-  if (! mma.begin()) {
+  if (!mma.begin()) {
     Serial.println("Failed to start accelerometer");
-    while (1);
+    while (1)
+      ;
   }
   Serial.println("MMA8451 found!");
 
   mma.setRange(MMA8451_RANGE_2_G);
   mma.setDataRate(MMA8451_DATARATE_100_HZ);
 
-  Serial.print("Range = "); Serial.print(2 << mma.getRange());
+  Serial.print("Range = ");
+  Serial.print(2 << mma.getRange());
   Serial.println("G");
-  Serial.print("Rate = "); Serial.println(mma.getDataRate());
-
+  Serial.print("Rate = ");
+  Serial.println(mma.getDataRate());
 }
 
 void setup_wifi() {
-  //WiFi.begin("Baba Ganoush (SS)", "PlsNoTorrent");
+  // WiFi.begin("Baba Ganoush (SS)", "PlsNoTorrent");
   WiFi.begin("chaseme", "gobubbles");
 
   Serial.print("Connecting");
 
-  while (WiFi.status() != WL_CONNECTED)
-  {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    //WiFi.printDiag(Serial);
+    // WiFi.printDiag(Serial);
   }
   Serial.println();
 
   Serial.print("Connected, IP address: ");
   Serial.println(WiFi.localIP());
-  //if (client.connect("10.0.0.8", 9000))
-  //client.setNoDelay(true);
+  // if (client.connect("10.0.0.8", 9000))
+  // client.setNoDelay(true);
 }
 
 void setup(void) {
-  delay( 3000 ); // power-up safety delay for LEDs, TODO is this necessary?
+  delay(3000);  // power-up safety delay for LEDs, TODO is this necessary?
   Serial.begin(115200);
   waitForSerial();
 
   Serial.println("Swing!");
 
 #ifdef USE_RECORDED_DATA
-  //calc_on_recorded_data();
+  // calc_on_recorded_data();
 #else
   if (RECORD_DATA) {
     setup_accel();
@@ -101,7 +104,6 @@ void setup(void) {
     LED_Init();
   }
 #endif
-
 }
 
 int MSG_LEN = 7;
@@ -129,8 +131,8 @@ void add_data(uint16_t x, uint16_t y, uint16_t z) {
 void send_data(uint16_t x, uint16_t y, uint16_t z) {
   add_data(x, y, z);
 
-  int to_send = min(client.availableForWrite(), (size_t) data_loc);
-  to_send = (to_send / MSG_LEN) * MSG_LEN; // Full messages at a time
+  int to_send = min(client.availableForWrite(), (size_t)data_loc);
+  to_send = (to_send / MSG_LEN) * MSG_LEN;  // Full messages at a time
   if (to_send > 0) {
     Serial.print("send: ");
     Serial.println(to_send);
@@ -156,8 +158,7 @@ void loop() {
   if (RECORD_DATA) {
     const char* addr = "192.168.62.16";
     if (!client.connected()) {
-      if (client.connect(addr, 9000))
-      {
+      if (client.connect(addr, 9000)) {
         Serial.println("connected!");
       } else {
         Serial.print("Failed to connect to ");
@@ -174,20 +175,19 @@ void loop() {
     Radio_Update(swing_mag);
     delay(8);
 
-    //unsigned long end__us = micros();
-    //if (count % 10 == 0) {
-      //Serial.println(mag);
-      //Serial.println((uint16_t) mag);
+    // unsigned long end__us = micros();
+    // if (count % 10 == 0) {
+    // Serial.println(mag);
+    // Serial.println((uint16_t) mag);
     //}
-    //last__us = end__us;
+    // last__us = end__us;
   } else {
     uint16_t mag = Radio_GetRecentMag();
     if (mag != 0) {
-      //Serial.print("Mag: ");
-      //Serial.println(mag);
+      // Serial.print("Mag: ");
+      // Serial.println(mag);
       estimator.add_mag(mag);
       LED_Update(estimator.get_angle());
     }
   }
 }
-

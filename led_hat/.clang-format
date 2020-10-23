@@ -1,0 +1,6 @@
+BasedOnStyle: Google
+---
+Language: ObjC
+ColumnLimit: 100
+---
+Language: Cpp

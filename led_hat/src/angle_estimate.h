@@ -5,7 +5,7 @@
 #include "ring_buffer.h"
 
 class AngleEstimate {
-  public:
+ public:
   AngleEstimate() {
     start_mag_ = 0;
     current_angle_ = 0;
@@ -24,7 +24,7 @@ class AngleEstimate {
   double get_angle();
   static double get_mag(int16_t x, int16_t y, int16_t z);
 
-  private:
+ private:
   void recalc_angle();
 
   double start_mag_;

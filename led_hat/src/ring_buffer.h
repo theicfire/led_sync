@@ -2,10 +2,10 @@
 
 // From
 // https://raw.githubusercontent.com/embeddedartistry/embedded-resources/master/examples/cpp/circular_buffer.cpp
-#include <cstdio>
 #include <unistd.h>
-const int MAX_SIZE = 100;
 
+#include <cstdio>
+const int MAX_SIZE = 100;
 
 template <class T>
 class RingBuffer {
@@ -13,7 +13,7 @@ class RingBuffer {
   // TODO getter?
   T buf_[MAX_SIZE];
 
-  explicit RingBuffer(size_t size): max_size_(MAX_SIZE) {
+  explicit RingBuffer(size_t size) : max_size_(MAX_SIZE) {
     full_ = false;
     head_ = 0;
     tail_ = 0;
@@ -88,57 +88,57 @@ class RingBuffer {
   bool full_;
 };
 
- //int main(void) {
-   //RingBuffer<uint32_t> circle(10);
-   //printf("\n === CPP Circular buffer check ===\n");
-   //printf("Size: %zu, Capacity: %zu\n", circle.size(), circle.capacity());
+// int main(void) {
+// RingBuffer<uint32_t> circle(10);
+// printf("\n === CPP Circular buffer check ===\n");
+// printf("Size: %zu, Capacity: %zu\n", circle.size(), circle.capacity());
 
-   //uint32_t x = 1;
-   //printf("Put 1, val: %d\n", x);
-   //circle.put(x);
+// uint32_t x = 1;
+// printf("Put 1, val: %d\n", x);
+// circle.put(x);
 
-   //x = circle.get();
-   //printf("Popped: %d\n", x);
+// x = circle.get();
+// printf("Popped: %d\n", x);
 
-   //printf("Empty: %d\n", circle.empty());
+// printf("Empty: %d\n", circle.empty());
 
-   //printf("Adding %zu values\n", circle.capacity() - 1);
-   //for (uint32_t i = 0; i < circle.capacity() - 1; i++) {
-     //circle.put(i);
-   //}
+// printf("Adding %zu values\n", circle.capacity() - 1);
+// for (uint32_t i = 0; i < circle.capacity() - 1; i++) {
+// circle.put(i);
+//}
 
-   //circle.reset();
+// circle.reset();
 
-   //printf("Full: %d\n", circle.full());
+// printf("Full: %d\n", circle.full());
 
-   //printf("Adding %zu values\n", circle.capacity());
-   //for (uint32_t i = 0; i < circle.capacity(); i++) {
-     //circle.put(i);
-   //}
+// printf("Adding %zu values\n", circle.capacity());
+// for (uint32_t i = 0; i < circle.capacity(); i++) {
+// circle.put(i);
+//}
 
-   //printf("Full: %d\n", circle.full());
+// printf("Full: %d\n", circle.full());
 
-   //printf("Reading back values: ");
-   //while (!circle.empty()) {
-     //printf("%u ", circle.get());
-   //}
-   //printf("\n");
+// printf("Reading back values: ");
+// while (!circle.empty()) {
+// printf("%u ", circle.get());
+//}
+// printf("\n");
 
-   //printf("Adding 15 values\n");
-   //for (uint32_t i = 0; i < circle.size() + 5; i++) {
-     //circle.put(i);
-   //}
+// printf("Adding 15 values\n");
+// for (uint32_t i = 0; i < circle.size() + 5; i++) {
+// circle.put(i);
+//}
 
-   //printf("Full: %d\n", circle.full());
+// printf("Full: %d\n", circle.full());
 
-   //printf("Reading back values: ");
-   //while (!circle.empty()) {
-     //printf("%u ", circle.get());
-   //}
-   //printf("\n");
+// printf("Reading back values: ");
+// while (!circle.empty()) {
+// printf("%u ", circle.get());
+//}
+// printf("\n");
 
-   //printf("Empty: %d\n", circle.empty());
-   //printf("Full: %d\n", circle.full());
+// printf("Empty: %d\n", circle.empty());
+// printf("Full: %d\n", circle.full());
 
-   //return 0;
- //}
+// return 0;
+//}

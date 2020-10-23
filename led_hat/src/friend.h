@@ -1,4 +1,4 @@
 #pragma once
-//namespace Friend {
-  extern bool friendExists;
+// namespace Friend {
+extern bool friendExists;
 //}
