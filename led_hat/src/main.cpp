@@ -2,7 +2,7 @@
 #include <Adafruit_Sensor.h>
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <HardwareSerial.h>
+// #include <HardwareSerial.h>
 #include <Wire.h>
 
 #include "angle_estimate.h"
@@ -19,7 +19,7 @@
 Adafruit_MMA8451 mma = Adafruit_MMA8451();
 WiFiClient client;
 // TODO make enum
-const bool RECORD_DATA = false;
+const bool RECORD_DATA = true;
 const bool IS_LEADER = false;
 
 void waitForSerial() {
@@ -157,7 +157,7 @@ void loop() {
   return;
 #endif
   if (RECORD_DATA) {
-    const char* addr = "192.168.62.16";
+    const char* addr = "192.168.40.16";
     if (!client.connected()) {
       if (client.connect(addr, 9000)) {
         Serial.println("connected!");
@@ -170,6 +170,7 @@ void loop() {
     }
     mma.read();
     send_data(mma.x, mma.y, mma.z);
+    delay(10);
   } else if (IS_LEADER) {
     mma.read();
     uint16_t swing_mag = AngleEstimate::get_mag(mma.x, mma.y, mma.z);
