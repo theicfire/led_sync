@@ -151,7 +151,7 @@ function find_patterns(rows) {
 
 let first;
 const rows = [];
-fs.createReadStream('entries1.csv')
+fs.createReadStream('entries2.csv')
   .pipe(csv())
   .on('data', (row) => {
     if (!first) {
@@ -159,11 +159,11 @@ fs.createReadStream('entries1.csv')
     } else {
       //console.log(get_smoothed_angle(first, row));
       const length = get_length(row);
-      //console.log(length);
+      console.log(length);
       rows.push(row);
       //console.log(`{${row.x},${row.y},${row.z}},`);
     }
   })
   .on('end', () => {
-    find_patterns(rows);
+    //find_patterns(rows);
   });
