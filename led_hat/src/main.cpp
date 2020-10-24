@@ -2,6 +2,7 @@
 #include <Adafruit_Sensor.h>
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <HardwareSerial.h>
 #include <Wire.h>
 
 #include "angle_estimate.h"
