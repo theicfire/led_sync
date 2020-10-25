@@ -310,7 +310,9 @@ void LED_Update(double swing_angle) {
   ////Serial.println(brightness);
   // runPaletteGradient(index, brightness);
 
-  uint8_t colorIndex = ((swing_angle + 1) / 2) * 256;
+  int FASTLED_MAX_INDEX =
+      240;  // Not 255. 240 - 255 wraps back to the starting value at 0. Eek!
+  uint8_t colorIndex = ((swing_angle + 1) / 2) * FASTLED_MAX_INDEX;
   uint8_t brightness = 150;
   CRGB color =
       ColorFromPalette(swingPalette, colorIndex, brightness, LINEARBLEND);

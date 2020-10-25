@@ -29,7 +29,7 @@ enum RunType {
 #ifdef USE_RECORDED_DATA
 RunType run_type = DO_USE_RECORDED_DATA;
 #else
-RunType run_type = RECORD_DATA;
+RunType run_type = IS_FOLLOWER;
 #endif
 
 void waitForSerial() {
