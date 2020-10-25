@@ -88,7 +88,6 @@ void setup_wifi() {
 
   Serial.print("Connected, IP address: ");
   Serial.println(WiFi.localIP());
-  // if (client.connect("10.0.0.8", 9000))
   // client.setNoDelay(true);
 }
 
@@ -181,18 +180,9 @@ void loop() {
     uint16_t swing_mag = AngleEstimate::get_mag(mma.x, mma.y, mma.z);
     Radio_Update(swing_mag);
     delay(8);
-
-    // unsigned long end__us = micros();
-    // if (count % 10 == 0) {
-    // Serial.println(mag);
-    // Serial.println((uint16_t) mag);
-    //}
-    // last__us = end__us;
   } else if (run_type == IS_FOLLOWER) {
     uint16_t mag = Radio_GetRecentMag();
     if (mag != 0) {
-      // Serial.print("Mag: ");
-      // Serial.println(mag);
       estimator.add_mag(mag);
       LED_Update(estimator.get_angle());
     }
