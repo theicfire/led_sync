@@ -20,7 +20,7 @@ void AngleEstimate::add_mag(double mag) {
   double alpha = 0.05;
   avg_mag_ = (alpha * mag) + (1 - alpha) * avg_mag_;
   if (swing_state_ == VALLEY_SEARCHING) {
-    if (mag < 3200 && current_index_ - previous_lowest_index_ > 50) {
+    if (mag < 3300 && current_index_ - previous_lowest_index_ > 50) {
       swing_state_ = MAYBE_VALLEY;
       lowest_index = current_index_;
       lowest_mag_ = mag;
@@ -33,7 +33,7 @@ void AngleEstimate::add_mag(double mag) {
     } else if (mag < lowest_mag_) {
       lowest_index = current_index_;
       lowest_mag_ = mag;
-    } else if (current_index_ - lowest_index > 10) {
+    } else if (current_index_ - lowest_index > 5) {
       // found lowest. It was at lowest_index. Calculate period.
       last_period_ = lowest_index - previous_lowest_index_;
       // printf("Period now %d\n", last_period_);
@@ -52,7 +52,7 @@ void AngleEstimate::recalc_angle() {}
 
 double AngleEstimate::get_angle() {
   double angle = inner_get_angle();
-  double MAX_STEP = 0.02;
+  double MAX_STEP = 0.05;
   if (last_angle_ > angle && last_angle_ - angle > MAX_STEP) {
     last_angle_ -= MAX_STEP;
     return last_angle_;

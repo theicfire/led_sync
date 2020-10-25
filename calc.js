@@ -151,7 +151,8 @@ function find_patterns(rows) {
 
 let first;
 const rows = [];
-fs.createReadStream('entries2.csv')
+console.log('int16_t recorded_accels[][3] = {');
+fs.createReadStream('entries3.csv')
   .pipe(csv())
   .on('data', (row) => {
     if (!first) {
@@ -159,11 +160,12 @@ fs.createReadStream('entries2.csv')
     } else {
       //console.log(get_smoothed_angle(first, row));
       const length = get_length(row);
-      console.log(length);
+      //console.log(length);
       rows.push(row);
-      //console.log(`{${row.x},${row.y},${row.z}},`);
+      console.log(`{${row.x},${row.y},${row.z}},`);
     }
   })
   .on('end', () => {
+      console.log('};');
     //find_patterns(rows);
   });
