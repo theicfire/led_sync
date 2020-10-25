@@ -32,6 +32,8 @@ RunType run_type = DO_USE_RECORDED_DATA;
 RunType run_type = IS_FOLLOWER;
 #endif
 
+AngleEstimate estimator;
+
 void waitForSerial() {
   while (!Serial) {
     delay(1);
@@ -154,9 +156,9 @@ void send_data(uint16_t x, uint16_t y, uint16_t z) {
   }
 }
 
-AngleEstimate estimator;
-int count = 0;
-unsigned long last__us;
+// Accelerometer is running at 100hz, so poll the accelerometer a bit faster
+// than that (not slower)
+const int LOOP_DELAY__ms = 10;
 void loop() {
   if (run_type == DO_USE_RECORDED_DATA) {
     return;
@@ -174,12 +176,12 @@ void loop() {
     }
     mma.read();
     send_data(mma.x, mma.y, mma.z);
-    delay(10);
+    delay(LOOP_DELAY__ms);
   } else if (run_type == IS_LEADER) {
     mma.read();
     uint16_t swing_mag = AngleEstimate::get_mag(mma.x, mma.y, mma.z);
     Radio_Update(swing_mag);
-    delay(8);
+    delay(LOOP_DELAY__ms);
   } else if (run_type == IS_FOLLOWER) {
     uint16_t mag = Radio_GetRecentMag();
     if (mag != 0) {
