@@ -9,18 +9,28 @@
 #include "led.h"
 #include "radio.h"
 
-//#define USE_RECORDED_DATA
+// #define USE_RECORDED_DATA // Uncommen to use recorded data in data.h
 #ifdef USE_RECORDED_DATA
 #include "data.h"
+#else
+int16_t recorded_accels[][3] = {};
 #endif
 
 #define MAX_DATA_LEN (5000)
 
 Adafruit_MMA8451 mma = Adafruit_MMA8451();
 WiFiClient client;
-// TODO make enum
-const bool RECORD_DATA = true;
-const bool IS_LEADER = false;
+enum RunType {
+  DO_USE_RECORDED_DATA,
+  RECORD_DATA,
+  IS_LEADER,
+  IS_FOLLOWER,
+};
+#ifdef USE_RECORDED_DATA
+RunType run_type = DO_USE_RECORDED_DATA;
+#else
+RunType run_type = RECORD_DATA;
+#endif
 
 void waitForSerial() {
   while (!Serial) {
@@ -28,7 +38,6 @@ void waitForSerial() {
   }
 }
 
-#ifdef USE_RECORDED_DATA
 void calc_on_recorded_data() {
   AngleEstimate estimator;
   Serial.println("Calculate angle based on recorded data");
@@ -45,7 +54,6 @@ void calc_on_recorded_data() {
   }
   Serial.println("Done");
 }
-#endif
 
 void setup_accel() {
   if (!mma.begin()) {
@@ -91,20 +99,18 @@ void setup(void) {
 
   Serial.println("Swing!");
 
-#ifdef USE_RECORDED_DATA
-  // calc_on_recorded_data();
-#else
-  if (RECORD_DATA) {
+  if (run_type == DO_USE_RECORDED_DATA) {
+    calc_on_recorded_data();
+  } else if (run_type == RECORD_DATA) {
     setup_accel();
     setup_wifi();
-  } else if (IS_LEADER) {
+  } else if (run_type == IS_LEADER) {
     setup_accel();
     Radio_Init();
-  } else {
+  } else if (run_type == IS_FOLLOWER) {
     Radio_Init();
     LED_Init();
   }
-#endif
 }
 
 int MSG_LEN = 7;
@@ -153,10 +159,9 @@ AngleEstimate estimator;
 int count = 0;
 unsigned long last__us;
 void loop() {
-#ifdef USE_RECORDED_DATA
-  return;
-#endif
-  if (RECORD_DATA) {
+  if (run_type == DO_USE_RECORDED_DATA) {
+    return;
+  } else if (run_type == RECORD_DATA) {
     const char* addr = "192.168.40.16";
     if (!client.connected()) {
       if (client.connect(addr, 9000)) {
@@ -171,7 +176,7 @@ void loop() {
     mma.read();
     send_data(mma.x, mma.y, mma.z);
     delay(10);
-  } else if (IS_LEADER) {
+  } else if (run_type == IS_LEADER) {
     mma.read();
     uint16_t swing_mag = AngleEstimate::get_mag(mma.x, mma.y, mma.z);
     Radio_Update(swing_mag);
@@ -183,7 +188,7 @@ void loop() {
     // Serial.println((uint16_t) mag);
     //}
     // last__us = end__us;
-  } else {
+  } else if (run_type == IS_FOLLOWER) {
     uint16_t mag = Radio_GetRecentMag();
     if (mag != 0) {
       // Serial.print("Mag: ");
