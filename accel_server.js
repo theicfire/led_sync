@@ -2,6 +2,11 @@ var net = require('net');
 var server = net.createServer();
 const { Duplex } = require('stream');
 
+function quat_distance(q1, q2) {
+  const product = q1.w*q2.w + q1.x*q2.x + q1.y*q2.y + q1.z*q2.z;
+  return Math.acos(2 * Math.pow(product, 2) - 1);
+}
+
 class ChunkStream extends Duplex {
   constructor(chunk_length, options) {
     super(options);
@@ -46,6 +51,7 @@ const csvWriter = createCsvWriter({
     path: 'entries.csv',
     header: [
         {id: 'skipped_data_count', title: 'skipped_data_count'},
+        {id: 'w', title: 'w'},
         {id: 'x', title: 'x'},
         {id: 'y', title: 'y'},
         {id: 'z', title: 'z'},
@@ -68,14 +74,23 @@ function to_signed_int(byteA, byteB) {
 
 let rec_data = [];
 function handleConnection(conn) {    
-  const duplex = new ChunkStream(7);
+  const base_quat = {w: 1, x: 0, y: 0, z: 0};
+  const max_size = Math.pow(2, 14);
+  const duplex = new ChunkStream(9);
   duplex.on('data', (data) => {
     const skipped_data_count = data[0];
-    const x = to_signed_int(data[1], data[2]);
-    const y = to_signed_int(data[3], data[4]);
-    const z = to_signed_int(data[5], data[6]);
-    csvWriter.writeRecords([{skipped_data_count, x, y, z}]).then(() => {
-      console.log('skipped', skipped_data_count, 'data', x, y, z);
+    const w = to_signed_int(data[1], data[2]);
+    const x = to_signed_int(data[3], data[4]);
+    const y = to_signed_int(data[5], data[6]);
+    const z = to_signed_int(data[7], data[8]);
+    let q2 = {};
+    q2.w = parseInt(w) / (max_size);
+    q2.x = parseInt(x) / (max_size);
+    q2.y = parseInt(y) / (max_size);
+    q2.z = parseInt(z) / (max_size);
+    csvWriter.writeRecords([{skipped_data_count, w, x, y, z}]).then(() => {
+      console.log('skipped', skipped_data_count, 'data', w, x, y, z);
+      console.log(quat_distance(base_quat, q2));
     });;
   });
   var remoteAddress = conn.remoteAddress + ':' + conn.remotePort;  

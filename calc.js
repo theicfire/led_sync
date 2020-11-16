@@ -141,18 +141,29 @@ function beginning_avg(points) {
   return sum / 50;
 }
 
+function quat_distance(q1, q2) {
+  const product = q1.w*q2.w + q1.x*q2.x + q1.y*q2.y + q1.z*q2.z;
+  return Math.acos(2 * Math.pow(product, 2) - 1);
+}
+
 function find_patterns(rows) {
-  const estimator = new AngleEstimate();
+  const max_size = Math.pow(2, 14);
+  const base_quat = {w: 1, x: 0, y: 0, z: 0};
+  //console.log(rows.length);
   for (let i = 0; i < rows.length; i++) {
-    estimator.add_accel(rows[i].x, rows[i].y, rows[i].z);
-    console.log(estimator.get_angle());
+    rows[i].w = parseInt(rows[i].w) / (max_size);
+    rows[i].x = parseInt(rows[i].x) / (max_size);
+    rows[i].y = parseInt(rows[i].y) / (max_size);
+    rows[i].z = parseInt(rows[i].z) / (max_size);
+    //console.log(rows[i]);
+    console.log(quat_distance(base_quat, rows[i]));
   }
 }
 
 let first;
 const rows = [];
-console.log('int16_t recorded_accels[][3] = {');
-fs.createReadStream('entries3.csv')
+//console.log('int16_t recorded_accels[][3] = {');
+fs.createReadStream('entries.csv')
   .pipe(csv())
   .on('data', (row) => {
     if (!first) {
@@ -162,10 +173,10 @@ fs.createReadStream('entries3.csv')
       const length = get_length(row);
       //console.log(length);
       rows.push(row);
-      console.log(`{${row.x},${row.y},${row.z}},`);
+      //console.log(`{${row.x},${row.y},${row.z}},`);
     }
   })
   .on('end', () => {
-      console.log('};');
-    //find_patterns(rows);
+      //console.log('};');
+    find_patterns(rows);
   });

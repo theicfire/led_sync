@@ -1,9 +1,12 @@
 {
     "files.associations": {
+        "RenderingPipeline.h": "objective-cpp",
+        "decode_render.h": "objective-cpp",
         "chrono": "cpp",
         "random": "cpp",
         "limits": "cpp",
         "valarray": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "*.bak": "cpp"
     }
 }

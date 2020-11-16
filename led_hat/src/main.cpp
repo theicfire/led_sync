@@ -18,7 +18,7 @@ int16_t recorded_accels[][3] = {};
 #endif
 
 #define MAX_DATA_LEN (5000)
-#define BNO055_SAMPLERATE_DELAY_MS (100)
+#define BNO055_SAMPLERATE_DELAY_MS (10)
 
 // Adafruit_MMA8451 mma = Adafruit_MMA8451();
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
@@ -228,12 +228,12 @@ void setup(void) {
   }
 }
 
-int MSG_LEN = 7;
+int MSG_LEN = 9;
 uint8_t data[MAX_DATA_LEN];
 int data_loc = 0;
 uint8_t skipped_data_count = 0;
 
-void add_data(uint16_t x, uint16_t y, uint16_t z) {
+void add_data(uint16_t w, uint16_t x, uint16_t y, uint16_t z) {
   if (data_loc >= MAX_DATA_LEN - MSG_LEN - 1) {
     if (skipped_data_count < 0xFF) {
       skipped_data_count += 1;
@@ -241,17 +241,19 @@ void add_data(uint16_t x, uint16_t y, uint16_t z) {
     return;
   }
   data[data_loc + 0] = skipped_data_count;
-  data[data_loc + 1] = x >> 8;
-  data[data_loc + 2] = x & 0xFF;
-  data[data_loc + 3] = y >> 8;
-  data[data_loc + 4] = y & 0xFF;
-  data[data_loc + 5] = z >> 8;
-  data[data_loc + 6] = z & 0xFF;
+  data[data_loc + 1] = w >> 8;
+  data[data_loc + 2] = w & 0xFF;
+  data[data_loc + 3] = x >> 8;
+  data[data_loc + 4] = x & 0xFF;
+  data[data_loc + 5] = y >> 8;
+  data[data_loc + 6] = y & 0xFF;
+  data[data_loc + 7] = z >> 8;
+  data[data_loc + 8] = z & 0xFF;
   data_loc += MSG_LEN;
 }
 
-void send_data(uint16_t x, uint16_t y, uint16_t z) {
-  add_data(x, y, z);
+void send_data(uint16_t w, uint16_t x, uint16_t y, uint16_t z) {
+  add_data(w, x, y, z);
 
   int to_send = min(client.availableForWrite(), (size_t)data_loc);
   to_send = (to_send / MSG_LEN) * MSG_LEN;  // Full messages at a time
@@ -277,7 +279,7 @@ void loop() {
   if (run_type == DO_USE_RECORDED_DATA) {
     return;
   } else if (run_type == RECORD_DATA) {
-    const char* addr = "192.168.40.16";
+    const char* addr = "192.168.111.16";
     if (!client.connected()) {
       if (client.connect(addr, 9000)) {
         Serial.println("connected!");
@@ -290,12 +292,13 @@ void loop() {
     }
     adafruit_bno055_raw_quat_t raw_quat;
     bno.getRawQuat(raw_quat);
-    send_data(raw_quat.x, raw_quat.y, raw_quat.z);  // TODO z
-    delay(LOOP_DELAY__ms);
+    send_data(raw_quat.w, raw_quat.x, raw_quat.y, raw_quat.z);
+    // delay(LOOP_DELAY__ms);
+    delay(BNO055_SAMPLERATE_DELAY_MS);
   } else if (run_type == IS_LEADER) {
     // mma.read(); TODO..
     // uint16_t swing_mag = AngleEstimate::get_mag(mma.x, mma.y, mma.z);
-    Radio_Update(swing_mag);
+    // Radio_Update(swing_mag);
     delay(LOOP_DELAY__ms);
   } else if (run_type == IS_FOLLOWER) {
     uint16_t mag = Radio_GetRecentMag();
