@@ -57,7 +57,8 @@ void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData, uint8_t 
       quickRespond = true;
     }
   }
-  if (abs(Time_GetTime() - receivedData.time) > 50) {
+  long diff = (long) Time_GetTime() - (long) receivedData.time;
+  if (abs(diff) > 50) {
     quickRespond = true;
   }
   unsigned long avg = (Time_GetTime() + receivedData.time) / 2;
