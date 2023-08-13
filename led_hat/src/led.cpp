@@ -5,13 +5,14 @@
 #include "time.h"
 #include "friend.h"
 
-#define LED_PIN     5
+#define LED_PIN1     5
+#define LED_PIN2     6
 #define NUM_LEDS    300
 //#define BRIGHTNESS  100
 // #define LED_TYPE    WS2812B
 // SK6812 timing more closely matches WS2811
 #define LED_TYPE    WS2811
-// SK2812 expected RGBW, WS2812B expect GRB
+// SK2812 expects RGBW, WS2812B expects GRB
 #define COLOR_ORDER RGB
 CRGB leds[NUM_LEDS];
 
@@ -341,7 +342,8 @@ void ChooseFriendGradient(unsigned long time, int speed)
 }
 
 void LED_Init() {
-    FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
+    FastLED.addLeds<LED_TYPE, LED_PIN1, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
+    FastLED.addLeds<LED_TYPE, LED_PIN2, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
     //FastLED.setBrightness(BRIGHTNESS);
 
     targetPalette = RainbowColors_p;
