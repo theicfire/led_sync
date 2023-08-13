@@ -8,8 +8,11 @@
 #define LED_PIN     5
 #define NUM_LEDS    300
 //#define BRIGHTNESS  100
+// #define LED_TYPE    WS2812B
+// SK6812 timing more closely matches WS2811
 #define LED_TYPE    WS2811
-#define COLOR_ORDER GRB
+// SK2812 expected RGBW, WS2812B expect GRB
+#define COLOR_ORDER RGB
 CRGB leds[NUM_LEDS];
 
 CRGBPalette16 currentPalette;
@@ -18,7 +21,53 @@ TBlendType    currentBlending;
 
 #define UPDATES_PER_SECOND 50
 
+struct RGBW {
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+  uint8_t w;
+};
+
+RGBW leds_rgbw[NUM_LEDS];
+
+RGBW rgb_2_rgbw(const CRGB rgb) {
+   RGBW ret;
+   ret.r = rgb.r;
+   ret.g = rgb.g;
+   ret.b = rgb.b;
+   ret.w = 0;
+   return ret;
+}
+
 //extern const TProgmemPalette16 only_red PROGMEM;
+
+DEFINE_GRADIENT_PALETTE( heatmap_gp ) {
+  0,     0,  0,  0,   //black
+128,   255,  0,  0,   //red
+224,   255,255,  0,   //bright yellow
+255,   255,255,255 }; //full white
+
+// Gradient palette "YlOrRd_07_gp", originally from
+// http://soliton.vm.bytemark.co.uk/pub/cpt-city/cb/seq/tn/YlOrRd_07.png.index.html
+// converted for FastLED with gammas (2.6, 2.2, 2.5)
+// Size: 56 bytes of program space.
+
+DEFINE_GRADIENT_PALETTE( YlOrRd_07_gp ) {
+    0, 255,255,103,
+   36, 255,255,103,
+   36, 252,178, 37,
+   72, 252,178, 37,
+   72, 252,115, 12,
+  109, 252,115, 12,
+  109, 249, 69,  6,
+  145, 249, 69,  6,
+  145, 247, 18,  2,
+  182, 247, 18,  2,
+  182, 188,  1,  1,
+  218, 188,  1,  1,
+  218,  98,  0,  2,
+  255,  98,  0,  2};
+
 
 DEFINE_GRADIENT_PALETTE( fireandice_gp ) {
     0,  80,  2,  1,
@@ -152,6 +201,14 @@ DEFINE_GRADIENT_PALETTE( aspectcolr_gp ) {
   191, 255,  0,  0,
   255, 255,255,  0};
 
+DEFINE_GRADIENT_PALETTE( full_white ) {
+  0, 255,255,255,
+  255, 255,255,255};
+
+DEFINE_GRADIENT_PALETTE( only_orange ) {
+  0, 255,165,0,
+  255, 255,165,0};
+
 DEFINE_GRADIENT_PALETTE( only_red ) {
     0, 255,0,0,
     255, 255,0,0};
@@ -176,9 +233,9 @@ DEFINE_GRADIENT_PALETTE( only_teal ) {
     0, 0,240,255,
     255, 0,240,255 };
 
-DEFINE_GRADIENT_PALETTE( only_orange ) {
-    0, 255,128,0,
-    255, 255,128,0 };
+// DEFINE_GRADIENT_PALETTE( only_orange ) {
+//     0, 255,128,0,
+//     255, 255,128,0 };
 
 void runPaletteGradient(int index, uint8_t brightness)
 {
@@ -208,8 +265,6 @@ void setPixel(int Pixel, byte red, byte green, byte blue) {
 void runMeteorRain(int index, byte red, byte green, byte blue) {
     uint8_t meteorSize = 10;
     uint8_t meteorTrailDecay = 64;
-    // 2x leds to have the tail of the meteor work correctly
-    int i = index % (NUM_LEDS * 2);
     // fade brightness all LEDs one step
     for(int j=0; j<NUM_LEDS; j++) {
         if(random(10)>5) {
@@ -230,6 +285,7 @@ void runMeteorRain(int index, byte red, byte green, byte blue) {
 
 void ChooseLonerGradient(unsigned long time, int speed)
 {
+    Serial.print("In choose loner gradient: "); Serial.println(time);
     uint8_t secondHand = (time / 1000) % (13 * speed);
     static uint8_t lastSecond = 99;
 
@@ -239,19 +295,21 @@ void ChooseLonerGradient(unsigned long time, int speed)
     }
 
 
-    if( secondHand <= 1 * speed)  { targetPalette = CloudColors_p;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 1 * speed + 3)  { targetPalette = only_red;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 3 * speed)  { targetPalette = PartyColors_p;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 3 * speed + 3)  { targetPalette = only_blue;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 5 * speed)  { targetPalette = fireandice_gp;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 5 * speed + 3)  { targetPalette = only_yellow;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 7 * speed)  { targetPalette = sky_45_gp;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 7 * speed + 3)  { targetPalette = only_purple;         currentBlending = LINEARBLEND; }
-    else if( secondHand <= 9 * speed)  { targetPalette = es_seadreams_04_gp;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 9 * speed + 3)  { targetPalette = only_teal;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 11 * speed)  { targetPalette = alarm_p1_0_5_gp;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 11 * speed + 3)  { targetPalette = only_orange;           currentBlending = LINEARBLEND; }
-    else if( secondHand <= 13 * speed)  { targetPalette = BrBG_07_gp;           currentBlending = LINEARBLEND; }
+    targetPalette = full_white;
+    currentBlending = LINEARBLEND;
+    // if( secondHand <= 1 * speed)  { targetPalette = CloudColors_p;           currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 1 * speed + 3)  { targetPalette = only_red;         currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 3 * speed)  { targetPalette = PartyColors_p;           currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 3 * speed + 3)  { targetPalette = only_blue;         currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 5 * speed)  { targetPalette = fireandice_gp;           currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 5 * speed + 3)  { targetPalette = only_yellow;         currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 7 * speed)  { targetPalette = sky_45_gp;           currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 7 * speed + 3)  { targetPalette = only_purple;         currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 9 * speed)  { targetPalette = es_seadreams_04_gp;           currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 9 * speed + 3)  { targetPalette = only_teal;           currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 11 * speed)  { targetPalette = alarm_p1_0_5_gp;           currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 11 * speed + 3)  { targetPalette = only_orange;           currentBlending = LINEARBLEND; }
+    // else if( secondHand <= 13 * speed)  { targetPalette = BrBG_07_gp;           currentBlending = LINEARBLEND; }
 }
 
 void ChooseFriendGradient(unsigned long time, int speed)
@@ -283,7 +341,7 @@ void ChooseFriendGradient(unsigned long time, int speed)
 }
 
 void LED_Init() {
-    FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+    FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
     //FastLED.setBrightness(BRIGHTNESS);
 
     targetPalette = RainbowColors_p;
@@ -318,19 +376,29 @@ void LED_Update()
     static unsigned long last_brightness_update_time = 0;
     uint8_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
 
-    int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
-    if (friendExists) {
-      ChooseFriendGradient(Time_GetTime(), 5);
-    } else {
-      ChooseLonerGradient(Time_GetTime(), 5);
-    }
+    // int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
+    // if (friendExists) {
+    //   ChooseFriendGradient(Time_GetTime(), 5);
+    // } else {
+    // ChooseLonerGradient(Time_GetTime(), 5);
+    // }
+
+    targetPalette = full_white;
     nblendPaletteTowardPalette( currentPalette, targetPalette, 48);
 
 
-    uint8_t brightness = get_brightness(friendExists);
+    uint8_t brightness = 100;
+    // uint8_t brightness = get_brightness(friendExists);
     //Serial.println(brightness);
     runPaletteGradient(index, brightness);
 
+    CRGB white = {17, 26, 0};
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds[i] = white;
+    }
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds_rgbw[i] = rgb_2_rgbw(leds[i]);
+    }
     FastLED.show();
 }
 
@@ -355,7 +423,7 @@ void LED_Update()
     //currentPalette[4] = CRGB::White;
     //currentPalette[8] = CRGB::White;
     //currentPalette[12] = CRGB::White;
-    
+
 //}
 
 //// This function sets up a palette of purple and green stripes.
@@ -364,7 +432,7 @@ void LED_Update()
     //CRGB purple = CHSV( HUE_PURPLE, 255, 255);
     //CRGB green  = CHSV( HUE_GREEN, 255, 255);
     //CRGB black  = CRGB::Black;
-    
+
     //currentPalette = CRGBPalette16(
                                    //green,  green,  black,  black,
                                    //purple, purple, black,  black,
@@ -396,5 +464,3 @@ void LED_Update()
     //CRGB::Red,
     //CRGB::Red,
 //};
-
-
