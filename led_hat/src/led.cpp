@@ -2,19 +2,25 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
+#include "FastLED_RGBW.h"
 #include "time.h"
 #include "friend.h"
 
 #define LED_PIN1     5
 #define LED_PIN2     6
-#define NUM_LEDS    300
+#define NUM_LEDS    189
+
+
 //#define BRIGHTNESS  100
 // #define LED_TYPE    WS2812B
 // SK6812 timing more closely matches WS2811
 #define LED_TYPE    WS2811
 // SK2812 expects RGBW, WS2812B expects GRB
 #define COLOR_ORDER RGB
-CRGB leds[NUM_LEDS];
+
+// FastLED with RGBW
+CRGBW leds[NUM_LEDS];
+CRGB *ledsRGB = (CRGB *) &leds[0];
 
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
@@ -29,7 +35,7 @@ struct RGBW {
   uint8_t w;
 };
 
-RGBW leds_rgbw[NUM_LEDS];
+// RGBW leds_rgbw[NUM_LEDS];
 
 RGBW rgb_2_rgbw(const CRGB rgb) {
    RGBW ret;
@@ -269,7 +275,7 @@ void runMeteorRain(int index, byte red, byte green, byte blue) {
     // fade brightness all LEDs one step
     for(int j=0; j<NUM_LEDS; j++) {
         if(random(10)>5) {
-            leds[j].fadeToBlackBy( meteorTrailDecay );
+//            leds[j].fadeToBlackBy( meteorTrailDecay );
         }
     }
 
@@ -342,8 +348,11 @@ void ChooseFriendGradient(unsigned long time, int speed)
 }
 
 void LED_Init() {
-    FastLED.addLeds<LED_TYPE, LED_PIN1, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
-    FastLED.addLeds<LED_TYPE, LED_PIN2, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
+   // FastLED.addLeds<LED_TYPE, LED_PIN1, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  //  FastLED.addLeds<LED_TYPE, LED_PIN2, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
+    FastLED.addLeds<LED_TYPE, LED_PIN1, RGB>(ledsRGB, getRGBWsize(NUM_LEDS));
+    FastLED.addLeds<LED_TYPE, LED_PIN2, RGB>(ledsRGB, getRGBWsize(NUM_LEDS));
+
     //FastLED.setBrightness(BRIGHTNESS);
 
     targetPalette = RainbowColors_p;
@@ -376,7 +385,7 @@ uint8_t get_brightness(bool friendExists) {
 void LED_Update()
 {
     static unsigned long last_brightness_update_time = 0;
-    uint8_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
+    uint32_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
 
     // int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
     // if (friendExists) {
@@ -389,17 +398,21 @@ void LED_Update()
     nblendPaletteTowardPalette( currentPalette, targetPalette, 48);
 
 
-    uint8_t brightness = 100;
+    uint8_t brightness = 10;
     // uint8_t brightness = get_brightness(friendExists);
     //Serial.println(brightness);
     runPaletteGradient(index, brightness);
 
-    CRGB white = {17, 26, 0};
+    int gradient[18] =  {-1, -2, -3, -3, -4,-4, -4,  -5, -5, -5, -5 -5,-4, -4, -4, -3, -3, -2, -1};
+//    CRGB white = {130, 206, 49};
+    unsigned long currentFrame = millis() / (1000 / UPDATES_PER_SECOND);
+    int currentStartFrame = currentFrame % NUM_LEDS;
     for (int i = 0; i < NUM_LEDS; i++) {
-      leds[i] = white;
-    }
-    for (int i = 0; i < NUM_LEDS; i++) {
-      leds_rgbw[i] = rgb_2_rgbw(leds[i]);
+      if ((currentStartFrame <= i) && i < (currentStartFrame + 18)) {
+         leds[i] = CHSV(13 + gradient[i - currentStartFrame] * 2, 255, 128);
+      } else {
+        leds[i] = CHSV(13, 255, 128);
+      }
     }
     FastLED.show();
 }

@@ -12,10 +12,10 @@ void waitForSerial() {
 }
 
 void setup() {
+    Serial.begin(115200);
     delay( 3000 ); // power-up safety delay for LEDs, TODO is this necessary?
     Radio_Init();
     LED_Init();
-    Serial.begin(115200);
    waitForSerial();
 }
 
