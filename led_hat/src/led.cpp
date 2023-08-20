@@ -1,6 +1,7 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <stdlib.h>
 
 #include "FastLED_RGBW.h"
 #include "time.h"
@@ -379,7 +380,37 @@ uint8_t get_brightness(bool friendExists) {
     } else {
       return friend_brightness - ((unsigned long) (friend_brightness - loner_brightness)) * brightness_move_fraction / 255;
     }
+}
 
+const int DEFAULT_HUE        = 013;
+const int DEFAULT_SATURATION = 255;
+const int DEFAULT_BRIGHTNESS = 128;
+
+/// speed is currently inversely proportional to the desired speed
+/// 0 is the fastest, 6 is nice and slow, too high gets choppy
+void updateHuesForWaves(int hues[NUM_LEDS], int originalHue, int targetHue, int width, int speed) {
+  unsigned long currentFrame = millis() / (1000 / UPDATES_PER_SECOND);
+  if (currentFrame % speed != 0) {
+    return;
+  }
+
+  int currentCenter = currentFrame % NUM_LEDS; 
+
+  float slope = float(targetHue - originalHue) / (width / 2.0);
+  for (int i = 0; i <= width / 2; i++) {
+    int leftIndex  = ((currentCenter - i) % NUM_LEDS + NUM_LEDS) % NUM_LEDS;
+    int rightIndex = ((currentCenter + i) % NUM_LEDS + NUM_LEDS) % NUM_LEDS;
+
+    hues[leftIndex]  += slope * abs((width / 2) - i);
+    if (leftIndex != rightIndex) {
+      hues[rightIndex]  += slope * abs((width / 2) - i);
+    }
+  }
+
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CHSV(hues[i], DEFAULT_SATURATION, DEFAULT_BRIGHTNESS);
+  }
+  FastLED.show();
 }
 
 void LED_Update()
@@ -403,18 +434,10 @@ void LED_Update()
     //Serial.println(brightness);
     runPaletteGradient(index, brightness);
 
-    int gradient[18] =  {-1, -2, -3, -3, -4,-4, -4,  -5, -5, -5, -5 -5,-4, -4, -4, -3, -3, -2, -1};
-//    CRGB white = {130, 206, 49};
-    unsigned long currentFrame = millis() / (1000 / UPDATES_PER_SECOND);
-    int currentStartFrame = currentFrame % NUM_LEDS;
-    for (int i = 0; i < NUM_LEDS; i++) {
-      if ((currentStartFrame <= i) && i < (currentStartFrame + 18)) {
-         leds[i] = CHSV(13 + gradient[i - currentStartFrame] * 2, 255, 128);
-      } else {
-        leds[i] = CHSV(13, 255, 128);
-      }
-    }
-    FastLED.show();
+    int hues[NUM_LEDS];
+    std::fill_n(hues, NUM_LEDS, DEFAULT_HUE);
+
+    updateHuesForWaves(hues, DEFAULT_HUE, 0, 50, 10);
 }
 
 //// This function fills the palette with totally random colors.
