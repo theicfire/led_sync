@@ -2,10 +2,13 @@
 #include <Arduino.h>
 #include <FastLED.h>
 #include <stdlib.h>
+#include <string>
 
+#include <map>
 #include "FastLED_RGBW.h"
 #include "time.h"
 #include "friend.h"
+using namespace std;
 
 #define LED_PIN1     5
 #define LED_PIN2     6
@@ -20,8 +23,11 @@
 #define COLOR_ORDER RGB
 
 // FastLED with RGBW
-CRGBW leds[NUM_LEDS];
-CRGB *ledsRGB = (CRGB *) &leds[0];
+CRGBW leds1[NUM_LEDS];
+CRGB *ledsRGB1 = (CRGB *) &leds1[0];
+CRGBW leds2[NUM_LEDS];
+CRGB *ledsRGB2 = (CRGB *) &leds2[0];
+
 
 CRGBPalette16 currentPalette;
 CRGBPalette16 targetPalette;
@@ -245,50 +251,50 @@ DEFINE_GRADIENT_PALETTE( only_teal ) {
 //     0, 255,128,0,
 //     255, 255,128,0 };
 
-void runPaletteGradient(int index, uint8_t brightness)
-{
-    uint8_t colorIndex = index;
+// void runPaletteGradient(int index, uint8_t brightness)
+// {
+//     uint8_t colorIndex = index;
 
-    for( int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = ColorFromPalette( currentPalette, colorIndex, brightness, currentBlending);
-        colorIndex += 3;
-    }
-}
+//     for( int i = 0; i < NUM_LEDS; i++) {
+//         leds[i] = ColorFromPalette( currentPalette, colorIndex, brightness, currentBlending);
+//         colorIndex += 3;
+//     }
+// }
 
-void runPaletteFullFade(int index) {
-    uint8_t brightness = 255;
-    uint8_t colorIndex = index / 4; // slow down
+// void runPaletteFullFade(int index) {
+//     uint8_t brightness = 255;
+//     uint8_t colorIndex = index / 4; // slow down
 
-    for( int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = ColorFromPalette( currentPalette, colorIndex, brightness, currentBlending);
-    }
-}
+//     for( int i = 0; i < NUM_LEDS; i++) {
+//         leds[i] = ColorFromPalette( currentPalette, colorIndex, brightness, currentBlending);
+//     }
+// }
 
-void setPixel(int Pixel, byte red, byte green, byte blue) {
-  leds[Pixel].r = red;
-  leds[Pixel].g = green;
-  leds[Pixel].b = blue;
-}
+// void setPixel(int Pixel, byte red, byte green, byte blue) {
+//   leds[Pixel].r = red;
+//   leds[Pixel].g = green;
+//   leds[Pixel].b = blue;
+// }
 
-void runMeteorRain(int index, byte red, byte green, byte blue) {
-    uint8_t meteorSize = 10;
-    uint8_t meteorTrailDecay = 64;
-    // fade brightness all LEDs one step
-    for(int j=0; j<NUM_LEDS; j++) {
-        if(random(10)>5) {
-//            leds[j].fadeToBlackBy( meteorTrailDecay );
-        }
-    }
+// void runMeteorRain(int index, byte red, byte green, byte blue) {
+//     uint8_t meteorSize = 10;
+//     uint8_t meteorTrailDecay = 64;
+//     // fade brightness all LEDs one step
+//     for(int j=0; j<NUM_LEDS; j++) {
+//         if(random(10)>5) {
+// //            leds[j].fadeToBlackBy( meteorTrailDecay );
+//         }
+//     }
 
-    // draw meteor
-    for (int i = index % 100; i < NUM_LEDS; i+= 100) {
-      for(int j = 0; j < meteorSize; j++) {
-          if( ( i-j <NUM_LEDS) && (i-j>=0) ) {
-            leds[i - j] = ColorFromPalette(currentPalette, index, 0xFF, currentBlending);
-          }
-      }
-    }
-}
+//     // draw meteor
+//     for (int i = index % 100; i < NUM_LEDS; i+= 100) {
+//       for(int j = 0; j < meteorSize; j++) {
+//           if( ( i-j <NUM_LEDS) && (i-j>=0) ) {
+//             leds[i - j] = ColorFromPalette(currentPalette, index, 0xFF, currentBlending);
+//           }
+//       }
+//     }
+// }
 
 
 void ChooseLonerGradient(unsigned long time, int speed)
@@ -351,8 +357,8 @@ void ChooseFriendGradient(unsigned long time, int speed)
 void LED_Init() {
    // FastLED.addLeds<LED_TYPE, LED_PIN1, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
   //  FastLED.addLeds<LED_TYPE, LED_PIN2, COLOR_ORDER>((CRGB*) leds_rgbw, NUM_LEDS).setCorrection( TypicalLEDStrip );
-    FastLED.addLeds<LED_TYPE, LED_PIN1, RGB>(ledsRGB, getRGBWsize(NUM_LEDS));
-    FastLED.addLeds<LED_TYPE, LED_PIN2, RGB>(ledsRGB, getRGBWsize(NUM_LEDS));
+    FastLED.addLeds<LED_TYPE, LED_PIN1, RGB>(ledsRGB1, getRGBWsize(NUM_LEDS));
+    FastLED.addLeds<LED_TYPE, LED_PIN2, RGB>(ledsRGB2, getRGBWsize(NUM_LEDS));
 
     //FastLED.setBrightness(BRIGHTNESS);
 
@@ -388,56 +394,177 @@ const int DEFAULT_BRIGHTNESS = 128;
 
 /// speed is currently inversely proportional to the desired speed
 /// 0 is the fastest, 6 is nice and slow, too high gets choppy
-void updateHuesForWaves(int hues[NUM_LEDS], int originalHue, int targetHue, int width, int speed) {
+void updateHuesForWaves(int originalHue, int targetHue, int width, int speed) {
+  int hues[NUM_LEDS];
+  std::fill_n(hues, NUM_LEDS, DEFAULT_HUE);
+
   unsigned long currentFrame = millis() / (1000 / UPDATES_PER_SECOND);
   if (currentFrame % speed != 0) {
     return;
   }
 
-  int currentCenter = currentFrame % NUM_LEDS; 
+  int currentCenter = currentFrame % NUM_LEDS;
 
-  float slope = float(targetHue - originalHue) / (width / 2.0);
+  float hueSlope = float(targetHue - originalHue) / (width / 2.0);
   for (int i = 0; i <= width / 2; i++) {
     int leftIndex  = ((currentCenter - i) % NUM_LEDS + NUM_LEDS) % NUM_LEDS;
     int rightIndex = ((currentCenter + i) % NUM_LEDS + NUM_LEDS) % NUM_LEDS;
 
-    hues[leftIndex]  += slope * abs((width / 2) - i);
+    hues[leftIndex]  += hueSlope * abs((width / 2) - i);
     if (leftIndex != rightIndex) {
-      hues[rightIndex]  += slope * abs((width / 2) - i);
+      hues[rightIndex]  += hueSlope * abs((width / 2) - i);
     }
   }
 
   for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = CHSV(hues[i], DEFAULT_SATURATION, DEFAULT_BRIGHTNESS);
+      leds1[i] = CHSV(hues[i], DEFAULT_SATURATION, DEFAULT_BRIGHTNESS);
+      leds2[i] = CHSV(hues[i], DEFAULT_SATURATION, DEFAULT_BRIGHTNESS);
+  }
+  FastLED.show();
+}
+
+void updateHuesForRandom() {
+  for (int i = 0; i < NUM_LEDS; i++) {
+      leds1[i] = CHSV(random(255), DEFAULT_SATURATION, DEFAULT_BRIGHTNESS);
+      leds2[i] = CHSV(random(255), DEFAULT_SATURATION, DEFAULT_BRIGHTNESS);
+  }
+  FastLED.show();
+}
+
+int morseCurCharInPhraseIndex = 0;
+int morseCurCharInMorseLetterIndex = 0;
+unsigned long startTimeOfMorseCurChar = 0;
+
+std::map<char, std::string> morseMap = {{'0', "-----"},
+{'1', ".----"},
+{'2', "..---"},
+{'3', "...--"},
+{'4', "....-"},
+{'5', "....."},
+{'6', "-...."},
+{'7', "--..."},
+{'8', "---.."},
+{'9', "----."},
+{'a', ".-"},
+{'b', "-..."},
+{'c', "-.-."},
+{'d', "-.."},
+{'e', "."},
+{'f', "..-."},
+{'g', "--."},
+{'h', "...."},
+{'i', ".."},
+{'j', ".---"},
+{'k', "-.-"},
+{'l', ".-.."},
+{'m', "--"},
+{'n', "-."},
+{'o', "---"},
+{'p', ".--."},
+{'q', "--.-"},
+{'r', ".-."},
+{'s', "..."},
+{'t', "-"},
+{'u', "..-"},
+{'v', "...-"},
+{'w', ".--"},
+{'x', "-..-"},
+{'y', "-.--"},
+{'z', "--.."},
+{'.', ".-.-.-"},
+{',', "--..--"},
+{'?', "..--.."},
+{'!', "-.-.--"},
+{'-', "-....-"},
+{'/', "-..-."},
+{'@', ".--.-."},
+{'(', "-.--."},
+{')', "-.--.-"}};
+
+enum SpaceMode {
+  END_OF_MORSE_LETTER,
+  END_OF_LETTER,
+  END_OF_WORD,
+  NOT_END
+};
+
+SpaceMode mode = NOT_END;
+
+void updateForMorseCode(string phrase, int timeUnit) {
+  if (startTimeOfMorseCurChar == 0) {
+    startTimeOfMorseCurChar = millis();
+  }
+
+  char curChar = phrase[morseCurCharInPhraseIndex];
+
+  int morseCharTimeUnits;
+  bool isOn = false;
+  if (mode == NOT_END) {
+      if (curChar == ' ') {
+        // SPACES ARE 7, but lead into an END_OF_LETTER WHICH IS 3 seconds, GET FUCKED
+        morseCharTimeUnits = 3;
+      } else {
+        string morseCode = morseMap[curChar];
+        char morseChar = morseCode[morseCurCharInMorseLetterIndex];
+        if (morseChar == '-') {
+          morseCharTimeUnits = 3;
+        } else if (morseChar == '.') {
+          morseCharTimeUnits = 1;
+        }
+        isOn = true; 
+      }
+  } else if (mode == END_OF_MORSE_LETTER) {
+      morseCharTimeUnits = 1;
+  } else if (mode == END_OF_LETTER) {
+      morseCharTimeUnits = 3;
+  } else if (mode == END_OF_WORD) {
+      morseCharTimeUnits = 7;
+  }
+
+  if (millis() - startTimeOfMorseCurChar > morseCharTimeUnits*timeUnit) {
+      startTimeOfMorseCurChar = millis();
+    if (mode != NOT_END) {
+      mode = NOT_END;
+      return;
+    }
+
+    mode = END_OF_MORSE_LETTER;
+    ++morseCurCharInMorseLetterIndex;
+
+    // End of letter
+    if ((curChar == ' ') || (morseCurCharInMorseLetterIndex == morseMap[curChar].size())) {
+      morseCurCharInMorseLetterIndex = 0;
+      mode = END_OF_LETTER;
+
+      ++morseCurCharInPhraseIndex;
+
+      // End of phrase
+      if (morseCurCharInPhraseIndex == phrase.size()) {
+        morseCurCharInPhraseIndex = 0;
+        mode = END_OF_WORD;
+      }
+      return;
+    }
+  }
+
+  for (int i; i < NUM_LEDS; i++) {
+    if (isOn) {
+        leds1[i] = CHSV(DEFAULT_HUE, DEFAULT_SATURATION, DEFAULT_BRIGHTNESS);
+        leds2[i] = CHSV(DEFAULT_HUE, DEFAULT_SATURATION, DEFAULT_BRIGHTNESS);
+    } else {
+        leds1[i] = CHSV(DEFAULT_HUE, DEFAULT_SATURATION, 0);
+        leds2[i] = CHSV(DEFAULT_HUE, DEFAULT_SATURATION, 0);
+    }
   }
   FastLED.show();
 }
 
 void LED_Update()
 {
-    static unsigned long last_brightness_update_time = 0;
-    uint32_t index = Time_GetTime() / (1000 / UPDATES_PER_SECOND);
-
-    // int brightness_change = (Time_GetTime() - last_brightness_update_time) / (1000 / 25);
-    // if (friendExists) {
-    //   ChooseFriendGradient(Time_GetTime(), 5);
-    // } else {
-    // ChooseLonerGradient(Time_GetTime(), 5);
-    // }
-
-    targetPalette = full_white;
-    nblendPaletteTowardPalette( currentPalette, targetPalette, 48);
-
-
-    uint8_t brightness = 10;
-    // uint8_t brightness = get_brightness(friendExists);
-    //Serial.println(brightness);
-    runPaletteGradient(index, brightness);
-
-    int hues[NUM_LEDS];
-    std::fill_n(hues, NUM_LEDS, DEFAULT_HUE);
-
-    updateHuesForWaves(hues, DEFAULT_HUE, 0, 50, 10);
+  // Currently have to choose which function to call to define a mode
+  // updateHuesForWaves(DEFAULT_HUE, 0, 80, 10);
+  updateForMorseCode("it was better next year", 250);
+  // updateHuesForRandom();
 }
 
 //// This function fills the palette with totally random colors.
