@@ -51,17 +51,15 @@ long wakeTime = 0;
 
 void setup() {
   // delay( 3000 ); // power-up safety delay for LEDs, TODO is this necessary?
-  Radio_Init();
   Serial.begin(115200);
   waitForSerial();
+  Radio_Init();
   Serial.println("Hello world!");
 
   wakeTime = millis();
 
-  while (millis() - wakeTime < LISTEN_TIME__ms) {
-    Radio_Update();
-  }
-  if (state == SLEEP_LISTEN) {
+  while (millis() - wakeTime < LISTEN_TIME__ms) {}
+  if (globalState == SLEEP_LISTEN) {
     Serial.println("Back to sleep");
     ESP.deepSleep(SLEEP_DURATION__us);
   } else {
@@ -144,7 +142,6 @@ void PrintMac(uint8_t *macaddr) {
 }
 
 void Radio_Init() {
-  Serial.begin(115200);
   if (esp_now_init() != 0) {
     Serial.println("*** ESP_Now init failed");
     while (true) {
