@@ -13,8 +13,9 @@ extern "C" {
 #include <user_interface.h>
 }
 
-#define WIFI_CHANNEL 4
-#define OUTPUT_GPIO_PIN 2
+const int WIFI_CHANNEL = 4;
+const int BUTTON_INPUT = D1;
+const int BUTTON_LED = D2;
 
 const bool IS_COORDINATOR = false; // True for only one device
 
@@ -39,6 +40,32 @@ const unsigned long DOOR_DASH_COORDINATION_DURATION__ms = 17e3;
 const unsigned long FLASH_DURATION__ms = 5e3;
 const unsigned long COOL_DOWN__ms = 15e3;
 
+/* While the capacitor is charged, the button will not be able to reset the
+ * ESP*/
+void keepCapacitorCharged() {
+  pinMode(BUTTON_INPUT, OUTPUT);
+  digitalWrite(BUTTON_INPUT, HIGH); // Prevent button from resetting
+}
+
+/* Before going to sleep, the capacitor needs to discharge so that we don't
+ * prevent the button from waking the ESP back up.*/
+void dischargeCapacitor() {
+  pinMode(BUTTON_INPUT, OUTPUT);
+  digitalWrite(BUTTON_INPUT, LOW); // Discharge capacitor
+  delay(5);
+}
+
+void setupSerial() {
+  Serial.begin(115200);
+  waitForSerial();
+  Serial.println("Hello world!");
+}
+
+void transitionState(States_t newState) {
+  globalState = newState;
+  Serial.printf("Transitioning to state %i\n", newState);
+}
+
 void waitForSerial() {
   while (!Serial) {
     delay(1);
@@ -61,9 +88,6 @@ bool hasDeclaredWinner = false;
 uint8_t winnerMac[6] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
 
 void setup() {
-  Serial.begin(115200);
-  waitForSerial();
-  Serial.println("Hello world!");
   if (IS_COORDINATOR) {
     setupCoordinator();
   } else {
@@ -72,27 +96,42 @@ void setup() {
 }
 
 void setupButton() {
+  pinMode(BUTTON_INPUT, INPUT);
+  bool btnPressed = digitalRead(BUTTON_INPUT);
+  setupSerial();
   Radio_Init(buttonCallBackFunction);
   wakeTime = millis();
 
-  // Wait for a message to have been received
-  while (millis() - wakeTime < LISTEN_TIME__ms) {
+  if (!btnPressed) {
+    // Wait for a message to have been received
+    while (millis() - wakeTime < LISTEN_TIME__ms) {
+    }
+
+    if (globalState == SLEEP_LISTEN) {
+      Serial.println("Back to sleep");
+      ESP.deepSleep(SLEEP_DURATION__us);
+    }
+  }
+  // At this point, one of two things has happened: the button was pressed, or
+  // we received a message
+
+  if (btnPressed) {
+    transitionState(DOOR_DASH_WAITING);
+    doorDashStartedAt = millis();
   }
 
-  if (globalState == SLEEP_LISTEN) {
-    Serial.println("Back to sleep");
-    ESP.deepSleep(SLEEP_DURATION__us);
-  }
+  keepCapacitorCharged(); // Prevent button from resetting mid-doordash
 
   unsigned long lastBroadcast = 0;
   while (true) {
     if (globalState == DOOR_DASH_WAITING) {
       // Slowly flash LED
-      if ((millis() - doorDashStartedAt) % 1000 <
+      if ((millis() - doorDashStartedAt) %
+              (DOOR_DASH_WAITING_FLASH_FREQUENCY__ms * 2) <
           DOOR_DASH_WAITING_FLASH_FREQUENCY__ms) {
-        gpio_set_level(OUTPUT_GPIO_PIN, 1);
+        digitalWrite(BUTTON_LED, HIGH);
       } else {
-        gpio_set_level(OUTPUT_GPIO_PIN, 0);
+        digitalWrite(BUTTON_LED, LOW);
       }
       // Rebroadcast button pressed every 20ms
       if (millis() - lastBroadcast > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
@@ -110,15 +149,16 @@ void setupButton() {
         lastBroadcast = millis();
       }
       // Flash LED fast
-      if ((millis() - doorDashStartedAt) % 200 <
+      if ((millis() - doorDashStartedAt) %
+              (DOOR_DASH_WINNER_FLASH_FREQUENCY__ms * 2) <
           DOOR_DASH_WINNER_FLASH_FREQUENCY__ms) {
-        gpio_set_level(OUTPUT_GPIO_PIN, 1);
+        digitalWrite(BUTTON_LED, HIGH);
       } else {
-        gpio_set_level(OUTPUT_GPIO_PIN, 0);
+        digitalWrite(BUTTON_LED, LOW);
       }
       // If more than 5 seconds have passed, go to cool down state
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms) {
-        globalState = DOOR_DASH_COOL_DOWN;
+        transitionState(DOOR_DASH_COOL_DOWN);
       }
     } else if (globalState == DOOR_DASH_LOSER) {
       // Broadcast repeatedly who the winner is
@@ -126,13 +166,15 @@ void setupButton() {
         sendWinner(winnerMac);
         lastBroadcast = millis();
       }
+      digitalWrite(BUTTON_LED, HIGH);
       // If more than 5 seconds have passed, go to cool down state
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms) {
-        globalState = DOOR_DASH_COOL_DOWN;
+        transitionState(DOOR_DASH_COOL_DOWN);
       }
     } else { // DOOR_DASH_COOL_DOWN
       // Sleep after cool down period is over
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
+        dischargeCapacitor();
         ESP.deepSleep(SLEEP_DURATION__us);
       }
     }
@@ -140,6 +182,7 @@ void setupButton() {
 }
 
 void setupCoordinator() {
+  setupSerial();
   Radio_Init(coordinatorCallBackFunction);
 
   while (true) {
@@ -230,15 +273,15 @@ void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
     if (globalState == SLEEP_LISTEN || globalState == DOOR_DASH_WAITING) {
       winnerMac = incomingData.winner_mac;
       if isMacAddressSelf (incomingData.winner_mac) {
-        globalState = DOOR_DASH_WINNER;
+        transitionState(DOOR_DASH_WINNER);
       } else {
-        globalState = DOOR_DASH_LOSER;
+        transitionState(DOOR_DASH_LOSER);
       }
       rebroadcast(&incomingData);
     }
   } else { // M1 message
     if (globalState == SLEEP_LISTEN) {
-      globalState = DOOR_DASH_WAITING;
+      transitionState(DOOR_DASH_WAITING);
       rebroadcast(&incomingData);
     }
   }
