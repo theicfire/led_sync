@@ -62,7 +62,6 @@ void setup() {
   Serial.begin(115200);
   waitForSerial();
   Serial.println("Hello world!");
-  Radio_Init();
   if (IS_COORDINATOR) {
     setupCoordinator();
   } else {
@@ -71,6 +70,7 @@ void setup() {
 }
 
 void setupButton() {
+  Radio_Init(buttonCallBackFunction);
   wakeTime = millis();
 
   // Wait for a message to have been received
@@ -138,6 +138,7 @@ void setupButton() {
 }
 
 void setupCoordinator() {
+  Radio_Init(coordinatorCallBackFunction);
   // Coordinator pseudo-code
   // Whenever a button press comes in, mark the time, and send M2 to all other
   // devices with the mac address of the winner. all messages coming in after
@@ -205,8 +206,11 @@ void rebroadcast(DataStruct *data) {
   esp_now_send(broadcastMac, (uint8_t *)data, sizeof(data));
 }
 
-void receiveCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
-                             uint8_t len) {
+void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
+                                 uint8_t len) {}
+
+void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
+                            uint8_t len) {
 
   DataStruct receivedData;
   memcpy(&receivedData, incomingData, sizeof(receivedData));
@@ -237,7 +241,8 @@ void PrintMac(uint8_t *macaddr) {
   }
 }
 
-void Radio_Init() {
+void Radio_Init(std::function<void(uint8_t *, uint8_t *, uint8_t)>
+                    receiveCallBackFunction) {
   if (esp_now_init() != 0) {
     Serial.println("*** ESP_Now init failed");
     while (true) {
