@@ -1,4 +1,3 @@
-#include "led.h"
 #include "radio.h"
 #include <Arduino.h>
 #include <FastLED.h>
@@ -19,7 +18,8 @@ extern "C" {
 
 const bool isMaster = false; // True for only one device
 
-uint8_t const broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // NULL means send to all peers
+uint8_t const broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF,
+                                0xFF, 0xFF}; // NULL means send to all peers
 
 enum States_t {
   SLEEP_LISTEN = 1,
@@ -66,7 +66,8 @@ void setup() {
   wakeTime = millis();
 
   // Wait for a message to have been received
-  while (millis() - wakeTime < LISTEN_TIME__ms) {}
+  while (millis() - wakeTime < LISTEN_TIME__ms) {
+  }
 
   if (globalState == SLEEP_LISTEN) {
     Serial.println("Back to sleep");
@@ -77,7 +78,8 @@ void setup() {
   while (true) {
     if (globalState == DOOR_DASH_WAITING) {
       // Slowly flash LED
-      if ((millis() - messageReceivedAt) % 1000 < DOOR_DASH_WAITING_FLASH_FREQUENCY__ms) {
+      if ((millis() - messageReceivedAt) % 1000 <
+          DOOR_DASH_WAITING_FLASH_FREQUENCY__ms) {
         gpio_set_level(OUTPUT_GPIO_PIN, 1);
       } else {
         gpio_set_level(OUTPUT_GPIO_PIN, 0);
@@ -98,7 +100,8 @@ void setup() {
         lastBroadcast = millis();
       }
       // Flash LED fast
-      if ((millis() - messageReceivedAt) % 1000 < DOOR_DASH_WINNER_FLASH_FREQUENCY__ms) {
+      if ((millis() - messageReceivedAt) % 1000 <
+          DOOR_DASH_WINNER_FLASH_FREQUENCY__ms) {
         gpio_set_level(OUTPUT_GPIO_PIN, 1);
       } else {
         gpio_set_level(OUTPUT_GPIO_PIN, 0);
@@ -149,8 +152,8 @@ struct __attribute__((packed)) DataStruct {
 //                    receives M1
 //                    updates state to M1
 //                    rebroadcasts M1
-// Ignores M1                                Receives M1, updates state, rebroadcasts
-
+// Ignores M1                                Receives M1, updates state,
+// rebroadcasts
 
 bool hasWinnerMsg(DataStruct data) {
   for (int i = 0; i < 6; i++) {
@@ -182,7 +185,7 @@ void sendWinnerSelected(uint8_t[] winnerMac) {
   esp_now_send(broadcastMac, (uint8_t *)sendingData, sizeof(sendingData));
 }
 
-void rebroadcast (DataStruct *data) {
+void rebroadcast(DataStruct *data) {
   esp_now_send(broadcastMac, (uint8_t *)data, sizeof(data));
 }
 
@@ -245,5 +248,7 @@ void Radio_Init() {
 }
 
 // Master pseudo-code
-// Whenever a button press comes in, mark the time, and send M2 to all other devices with the mac address of the winner.
-// all messages coming in after the first one are ignored for the next TBD time (maybe the same length of time as the door dash cool down period or a bit longer?).
+// Whenever a button press comes in, mark the time, and send M2 to all other
+// devices with the mac address of the winner. all messages coming in after the
+// first one are ignored for the next TBD time (maybe the same length of time as
+// the door dash cool down period or a bit longer?).
