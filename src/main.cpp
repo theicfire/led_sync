@@ -188,6 +188,7 @@ void setupCoordinator() {
   while (true) {
     if (hasDeclaredWinner &&
         millis() - doorDashStartedAt > DOOR_DASH_COORDINATION_DURATION__ms) {
+      Serial.println("Resetting after doordash");
       doorDashStartedAt = 0;
       hasDeclaredWinner = false;
     }
@@ -203,22 +204,6 @@ struct __attribute__((packed)) DataStruct {
   // Master sends a message to everyone about who the winner
   uint8_t winner_mac[6]; // M2
 };
-
-// // Scenario: my button is pressed
-// // Do I update my own state, or do I wait to hear from the master?
-// FAR                  CLOSE                MASTER
-//                     Pressed
-//                     broadcast
-// update state to M1  Update state to M1
-// // Master never has to tell others that a button has been pressed
-
-// A                    B                    C
-// M1 + broadcast
-//                    receives M1
-//                    updates state to M1
-//                    rebroadcasts M1
-// Ignores M1                                Receives M1, updates state,
-// rebroadcasts
 
 bool hasWinnerMsg(DataStruct data) {
   for (int i = 0; i < 6; i++) {
@@ -259,6 +244,8 @@ void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
   rebroadcast(&incomingData); // Could be optimized to only rebroadcast M2s
 
   if (!hasDeclaredWinner) {
+    Serial.print("Declare winner: ");
+    printMac(incomingData.button_pressed_mac);
     winnerMac = incomingData.button_pressed_mac;
     doorDashStartedAt = millis();
     hasDeclaredWinner = true;
@@ -291,7 +278,7 @@ void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
   }
 }
 
-void PrintMac(uint8_t *macaddr) {
+void printMac(uint8_t *macaddr) {
   for (byte n = 0; n < 6; n++) {
     Serial.print(macaddr[n], HEX);
   }
