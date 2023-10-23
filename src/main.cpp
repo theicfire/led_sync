@@ -35,6 +35,7 @@ const unsigned long LISTEN_TIME__ms = 50;
 const unsigned long DOOR_DASH_REBROADCAST_INTERVAL__ms = 20;
 const unsigned long DOOR_DASH_WAITING_FLASH_FREQUENCY__ms = 500;
 const unsigned long DOOR_DASH_WINNER_FLASH_FREQUENCY__ms = 120;
+const unsigned long DOOR_DASH_COORDINATION_DURATION__ms = 17e3;
 const unsigned long FLASH_DURATION__ms = 5e3;
 const unsigned long COOL_DOWN__ms = 15e3;
 
@@ -55,7 +56,8 @@ bool isMacAddressSelf(uint8_t *mac) {
 }
 
 unsigned long wakeTime = 0;
-unsigned long messageReceivedAt = 0;
+unsigned long doorDashStartedAt = 0;
+bool hasDeclaredWinner = false;
 uint8_t winnerMac[6] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
 
 void setup() {
@@ -86,7 +88,7 @@ void setupButton() {
   while (true) {
     if (globalState == DOOR_DASH_WAITING) {
       // Slowly flash LED
-      if ((millis() - messageReceivedAt) % 1000 <
+      if ((millis() - doorDashStartedAt) % 1000 <
           DOOR_DASH_WAITING_FLASH_FREQUENCY__ms) {
         gpio_set_level(OUTPUT_GPIO_PIN, 1);
       } else {
@@ -98,7 +100,7 @@ void setupButton() {
         lastBroadcast = millis();
       }
       // If more than 20 seconds have passed, then go to sleep
-      if (millis() - messageReceivedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
+      if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
         ESP.deepSleep(SLEEP_DURATION__us);
       }
     } else if (globalState == DOOR_DASH_WINNER) {
@@ -108,14 +110,14 @@ void setupButton() {
         lastBroadcast = millis();
       }
       // Flash LED fast
-      if ((millis() - messageReceivedAt) % 200 <
+      if ((millis() - doorDashStartedAt) % 200 <
           DOOR_DASH_WINNER_FLASH_FREQUENCY__ms) {
         gpio_set_level(OUTPUT_GPIO_PIN, 1);
       } else {
         gpio_set_level(OUTPUT_GPIO_PIN, 0);
       }
       // If more than 5 seconds have passed, go to cool down state
-      if (millis() - messageReceivedAt > FLASH_DURATION__ms) {
+      if (millis() - doorDashStartedAt > FLASH_DURATION__ms) {
         globalState = DOOR_DASH_COOL_DOWN;
       }
     } else if (globalState == DOOR_DASH_LOSER) {
@@ -125,12 +127,12 @@ void setupButton() {
         lastBroadcast = millis();
       }
       // If more than 5 seconds have passed, go to cool down state
-      if (millis() - messageReceivedAt > FLASH_DURATION__ms) {
+      if (millis() - doorDashStartedAt > FLASH_DURATION__ms) {
         globalState = DOOR_DASH_COOL_DOWN;
       }
     } else { // DOOR_DASH_COOL_DOWN
       // Sleep after cool down period is over
-      if (millis() - messageReceivedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
+      if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
         ESP.deepSleep(SLEEP_DURATION__us);
       }
     }
@@ -139,11 +141,14 @@ void setupButton() {
 
 void setupCoordinator() {
   Radio_Init(coordinatorCallBackFunction);
-  // Coordinator pseudo-code
-  // Whenever a button press comes in, mark the time, and send M2 to all other
-  // devices with the mac address of the winner. all messages coming in after
-  // the first one are ignored for the next TBD time (maybe the same length of
-  // time as the door dash cool down period or a bit longer?).
+
+  while (true) {
+    if (hasDeclaredWinner &&
+        millis() - doorDashStartedAt > DOOR_DASH_COORDINATION_DURATION__ms) {
+      doorDashStartedAt = 0;
+      hasDeclaredWinner = false;
+    }
+  }
 }
 
 void loop() { Serial.println("ERROR, this should never run"); }
@@ -207,32 +212,40 @@ void rebroadcast(DataStruct *data) {
 }
 
 void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
-                                 uint8_t len) {}
+                                 uint8_t len) {
+  rebroadcast(&incomingData); // Could be optimized to only rebroadcast M2s
+
+  if (!hasDeclaredWinner) {
+    winnerMac = incomingData.button_pressed_mac;
+    doorDashStartedAt = millis();
+    hasDeclaredWinner = true;
+  }
+}
 
 void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
                             uint8_t len) {
 
-  DataStruct receivedData;
-  memcpy(&receivedData, incomingData, sizeof(receivedData));
-
   // Handle state changes, and rebroadcasting
-  if (hasWinnerMsg(receivedData)) { // M2 message
+  if (hasWinnerMsg(incomingData)) { // M2 message
     if (globalState == SLEEP_LISTEN || globalState == DOOR_DASH_WAITING) {
-      winnerMac = receivedData.winner_mac;
-      if isMacAddressSelf (receivedData.winner_mac) {
+      winnerMac = incomingData.winner_mac;
+      if isMacAddressSelf (incomingData.winner_mac) {
         globalState = DOOR_DASH_WINNER;
       } else {
         globalState = DOOR_DASH_LOSER;
       }
-      rebroadcast(&receivedData);
+      rebroadcast(&incomingData);
     }
   } else { // M1 message
     if (globalState == SLEEP_LISTEN) {
       globalState = DOOR_DASH_WAITING;
-      rebroadcast(&receivedData);
+      rebroadcast(&incomingData);
     }
   }
-  messageReceivedAt = millis();
+  if (doorDashStartedAt == 0) {
+    // Gets reset after the button goes to sleep
+    doorDashStartedAt = millis();
+  }
 }
 
 void PrintMac(uint8_t *macaddr) {
