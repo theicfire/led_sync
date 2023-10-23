@@ -16,7 +16,7 @@ extern "C" {
 #define WIFI_CHANNEL 4
 #define OUTPUT_GPIO_PIN 2
 
-const bool isMaster = false; // True for only one device
+const bool IS_COORDINATOR = false; // True for only one device
 
 uint8_t const broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF,
                                 0xFF, 0xFF}; // NULL means send to all peers
@@ -61,8 +61,16 @@ uint8_t winnerMac[6] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
 void setup() {
   Serial.begin(115200);
   waitForSerial();
-  Radio_Init();
   Serial.println("Hello world!");
+  Radio_Init();
+  if (IS_COORDINATOR) {
+    setupCoordinator();
+  } else {
+    setupButton();
+  }
+}
+
+void setupButton() {
   wakeTime = millis();
 
   // Wait for a message to have been received
@@ -95,12 +103,12 @@ void setup() {
       }
     } else if (globalState == DOOR_DASH_WINNER) {
       // Broadcast repeatedly who the winner is
-      if (millis() - messageReceivedAt > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
+      if (millis() - lastBroadcast > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
         sendWinner(winnerMac);
         lastBroadcast = millis();
       }
       // Flash LED fast
-      if ((millis() - messageReceivedAt) % 1000 <
+      if ((millis() - messageReceivedAt) % 200 <
           DOOR_DASH_WINNER_FLASH_FREQUENCY__ms) {
         gpio_set_level(OUTPUT_GPIO_PIN, 1);
       } else {
@@ -112,7 +120,7 @@ void setup() {
       }
     } else if (globalState == DOOR_DASH_LOSER) {
       // Broadcast repeatedly who the winner is
-      if (millis() - messageReceivedAt > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
+      if (millis() - lastBroadcast > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
         sendWinner(winnerMac);
         lastBroadcast = millis();
       }
@@ -127,6 +135,14 @@ void setup() {
       }
     }
   }
+}
+
+void setupCoordinator() {
+  // Coordinator pseudo-code
+  // Whenever a button press comes in, mark the time, and send M2 to all other
+  // devices with the mac address of the winner. all messages coming in after
+  // the first one are ignored for the next TBD time (maybe the same length of
+  // time as the door dash cool down period or a bit longer?).
 }
 
 void loop() { Serial.println("ERROR, this should never run"); }
@@ -246,9 +262,3 @@ void Radio_Init() {
 
   esp_now_register_recv_cb(receiveCallBackFunction);
 }
-
-// Master pseudo-code
-// Whenever a button press comes in, mark the time, and send M2 to all other
-// devices with the mac address of the winner. all messages coming in after the
-// first one are ignored for the next TBD time (maybe the same length of time as
-// the door dash cool down period or a bit longer?).
