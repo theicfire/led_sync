@@ -16,7 +16,7 @@ const int WIFI_CHANNEL = 4;
 const int BUTTON_INPUT = D1;
 const int BUTTON_LED = D2;
 
-const bool IS_COORDINATOR = true; // True for only one device
+const bool IS_COORDINATOR = false; // True for only one device
 
 uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF,
                           0xFF, 0xFF, 0xFF}; // NULL means send to all peers
@@ -61,10 +61,14 @@ void keepCapacitorCharged() {
 
 /* Before going to sleep, the capacitor needs to discharge so that we don't
  * prevent the button from waking the ESP back up.*/
-void dischargeCapacitor() {
+void goToSleep() {
   pinMode(BUTTON_INPUT, OUTPUT);
   digitalWrite(BUTTON_INPUT, LOW); // Discharge capacitor
   delay(5);
+
+  Serial.println("Going to sleep");
+  delay(10); // TODO remove I think
+  ESP.deepSleep(SLEEP_DURATION__us);
 }
 
 bool hasWinnerMsg(DataStruct *data) {
@@ -92,7 +96,27 @@ void setupSerial() {
 
 void transitionState(States_t newState) {
   globalState = newState;
-  Serial.printf("Transitioning to state %i\n", newState);
+
+  switch (newState) {
+  case SLEEP_LISTEN:
+    Serial.println("Transitioned to SLEEP_LISTEN");
+    break;
+  case DOOR_DASH_WAITING:
+    Serial.println("Transitioned to DOOR_DASH_WAITING");
+    break;
+  case DOOR_DASH_WINNER:
+    Serial.println("Transitioned to DOOR_DASH_WINNER");
+    break;
+  case DOOR_DASH_LOSER:
+    Serial.println("Transitioned to DOOR_DASH_LOSER");
+    break;
+  case DOOR_DASH_COOL_DOWN:
+    Serial.println("Transitioned to DOOR_DASH_COOL_DOWN");
+    break;
+  default:
+    Serial.println("Transitioned to ERROR, unknown state");
+    break;
+  }
 }
 
 void printMac(uint8_t *macaddr) {
@@ -142,6 +166,7 @@ void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
   if (!hasDeclaredWinner) {
     Serial.print("Declare winner: ");
     printMac(data->button_pressed_mac);
+    Serial.println();
     memcpy((uint8_t *)winnerMac, data->button_pressed_mac, 6);
 
     doorDashStartedAt = millis();
@@ -187,8 +212,6 @@ void Radio_Init() {
   // role set to COMBO so it can send and receive - not sure this is essential
   esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
 
-  Serial.println("Starting Master");
-
   WiFi.mode(WIFI_STA); // Station mode for esp-now controller
 
   Serial.printf("This mac: %s, ", WiFi.macAddress().c_str());
@@ -224,13 +247,14 @@ void setupButton() {
 
     if (globalState == SLEEP_LISTEN) {
       Serial.println("Back to sleep");
-      ESP.deepSleep(SLEEP_DURATION__us);
+      goToSleep();
     }
   }
   // At this point, one of two things has happened: the button was pressed, or
   // we received a message
 
   if (btnPressed) {
+    Serial.println("Button pressed");
     transitionState(DOOR_DASH_WAITING);
     doorDashStartedAt = millis();
   }
@@ -245,9 +269,9 @@ void setupButton() {
       if ((millis() - doorDashStartedAt) %
               (DOOR_DASH_WAITING_FLASH_FREQUENCY__ms * 2) <
           DOOR_DASH_WAITING_FLASH_FREQUENCY__ms) {
-        digitalWrite(BUTTON_LED, HIGH);
-      } else {
         digitalWrite(BUTTON_LED, LOW);
+      } else {
+        digitalWrite(BUTTON_LED, HIGH);
       }
       // Rebroadcast button pressed every 20ms
       if (millis() - lastBroadcast > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
@@ -256,7 +280,7 @@ void setupButton() {
       }
       // If more than 20 seconds have passed, then go to sleep
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
-        ESP.deepSleep(SLEEP_DURATION__us);
+        goToSleep();
       }
     } else if (globalState == DOOR_DASH_WINNER) {
       // Broadcast repeatedly who the winner is
@@ -290,8 +314,7 @@ void setupButton() {
     } else { // DOOR_DASH_COOL_DOWN
       // Sleep after cool down period is over
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
-        dischargeCapacitor();
-        ESP.deepSleep(SLEEP_DURATION__us);
+        goToSleep();
       }
     }
   }
