@@ -16,7 +16,7 @@ const int WIFI_CHANNEL = 4;
 const int BUTTON_INPUT = D1;
 const int BUTTON_LED = D2;
 
-const bool IS_COORDINATOR = true; // True for only one device
+const bool IS_COORDINATOR = false; // True for only one device
 
 uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF,
                           0xFF, 0xFF, 0xFF}; // NULL means send to all peers
