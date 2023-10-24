@@ -18,8 +18,8 @@ const int BUTTON_LED = D2;
 
 const bool IS_COORDINATOR = true; // True for only one device
 
-uint8_t const broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF,
-                                0xFF, 0xFF}; // NULL means send to all peers
+uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF,
+                          0xFF, 0xFF, 0xFF}; // NULL means send to all peers
 
 enum States_t {
   SLEEP_LISTEN = 1,
@@ -67,6 +67,15 @@ void dischargeCapacitor() {
   delay(5);
 }
 
+bool hasWinnerMsg(DataStruct *data) {
+  for (int i = 0; i < 6; i++) {
+    if (data->winner_mac[i] != 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void waitForSerial() {
   while (!Serial) {
     delay(1);
@@ -92,33 +101,84 @@ void printMac(uint8_t *macaddr) {
   }
 }
 
+void setMacAddress(uint8_t *mac) { WiFi.macAddress(mac); }
+
 void sendButtonPressed() {
   DataStruct sendingData = {};
-  sendingData.button_pressed_mac = WiFi.macAddress();
-  esp_now_send(broadcastMac, (uint8_t *)sendingData,
+  setMacAddress(
+      (uint8_t *)&sendingData.button_pressed_mac); // TODO make this nicer
+  esp_now_send(broadcastMac, (uint8_t *)&sendingData,
                sizeof(sendingData)); // NULL means send to all peers
 }
 
-void sendWinner(uint8_t[6] winner) {
+void sendWinner(uint8_t *winner) {
   DataStruct sendingData = {};
-  sendingData.winner_mac = winner;
-  esp_now_send(broadcastMac, (uint8_t *)sendingData,
+  // TODO make it cleaner instead of this 6. Make it a struct instead?
+  memcpy((uint8_t *)sendingData.winner_mac, winner, 6);
+  esp_now_send(broadcastMac, (uint8_t *)&sendingData,
                sizeof(sendingData)); // NULL means send to all peers
 }
 
-// Only master sends this
-void sendWinnerSelected(uint8_t[] winnerMac) {
-  DataStruct sendingData = {};
-  sendingData.winner_mac = winnerMac;
-  esp_now_send(broadcastMac, (uint8_t *)sendingData, sizeof(sendingData));
+void rebroadcast(uint8_t *data, uint8_t len) {
+  esp_now_send(broadcastMac, data, len);
 }
 
-void rebroadcast(DataStruct *data) {
-  esp_now_send(broadcastMac, (uint8_t *)data, sizeof(data));
+bool isMacAddressSelf(uint8_t *mac) {
+  uint8_t selfMacAddress[6] = {};
+  setMacAddress((uint8_t *)selfMacAddress);
+  for (int i = 0; i < 6; i++) {
+    if (mac[i] != selfMacAddress[i]) {
+      return false;
+    }
+  }
+  return true;
 }
 
-void Radio_Init(std::function<void(uint8_t *, uint8_t *, uint8_t)>
-                    receiveCallBackFunction) {
+void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
+                                 uint8_t len) {
+  rebroadcast(incomingData, len); // Could be optimized to only rebroadcast M2s
+
+  DataStruct *data = (DataStruct *)incomingData;
+  if (!hasDeclaredWinner) {
+    Serial.print("Declare winner: ");
+    printMac(data->button_pressed_mac);
+    memcpy((uint8_t *)winnerMac, data->button_pressed_mac, 6);
+
+    doorDashStartedAt = millis();
+    hasDeclaredWinner = true;
+  }
+}
+
+void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
+                            uint8_t len) {
+
+  DataStruct *data = (DataStruct *)incomingData;
+  // Handle state changes, and rebroadcasting
+  if (hasWinnerMsg(data)) { // M2 message
+    if (globalState == SLEEP_LISTEN || globalState == DOOR_DASH_WAITING) {
+      memcpy(winnerMac, data->winner_mac, 6);
+      if (isMacAddressSelf(data->winner_mac)) {
+        transitionState(DOOR_DASH_WINNER);
+      } else {
+        transitionState(DOOR_DASH_LOSER);
+      }
+
+      rebroadcast(incomingData, len);
+    }
+  } else { // M1 message
+    if (globalState == SLEEP_LISTEN) {
+      transitionState(DOOR_DASH_WAITING);
+
+      rebroadcast(incomingData, len);
+    }
+  }
+  if (doorDashStartedAt == 0) {
+    // Gets reset after the button goes to sleep
+    doorDashStartedAt = millis();
+  }
+}
+
+void Radio_Init() {
   if (esp_now_init() != 0) {
     Serial.println("*** ESP_Now init failed");
     while (true) {
@@ -141,55 +201,12 @@ void Radio_Init(std::function<void(uint8_t *, uint8_t *, uint8_t)>
 
   Serial.println("Setup finished");
 
-  esp_now_register_recv_cb(receiveCallBackFunction);
-}
-
-bool isMacAddressSelf(uint8_t *mac) {
-  uint8_t *selfMacAddress = WiFi.macAddress();
-  for (int i = 0; i < 6; i++) {
-    if (mac[i] != selfMacAddress[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
-                                 uint8_t len) {
-  rebroadcast(&incomingData); // Could be optimized to only rebroadcast M2s
-
-  if (!hasDeclaredWinner) {
-    Serial.print("Declare winner: ");
-    printMac(incomingData.button_pressed_mac);
-    winnerMac = incomingData.button_pressed_mac;
-    doorDashStartedAt = millis();
-    hasDeclaredWinner = true;
-  }
-}
-
-void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
-                            uint8_t len) {
-
-  // Handle state changes, and rebroadcasting
-  if (hasWinnerMsg(incomingData)) { // M2 message
-    if (globalState == SLEEP_LISTEN || globalState == DOOR_DASH_WAITING) {
-      winnerMac = incomingData.winner_mac;
-      if isMacAddressSelf (incomingData.winner_mac) {
-        transitionState(DOOR_DASH_WINNER);
-      } else {
-        transitionState(DOOR_DASH_LOSER);
-      }
-      rebroadcast(&incomingData);
-    }
-  } else { // M1 message
-    if (globalState == SLEEP_LISTEN) {
-      transitionState(DOOR_DASH_WAITING);
-      rebroadcast(&incomingData);
-    }
-  }
-  if (doorDashStartedAt == 0) {
-    // Gets reset after the button goes to sleep
-    doorDashStartedAt = millis();
+  // TODO consider bringing back receiveCallBackFunction so that IS_COORDINATOR
+  // is not checked twice
+  if (IS_COORDINATOR) {
+    esp_now_register_recv_cb(coordinatorCallBackFunction);
+  } else {
+    esp_now_register_recv_cb(buttonCallBackFunction);
   }
 }
 
@@ -197,7 +214,7 @@ void setupButton() {
   pinMode(BUTTON_INPUT, INPUT);
   bool btnPressed = digitalRead(BUTTON_INPUT);
   setupSerial();
-  Radio_Init(buttonCallBackFunction);
+  Radio_Init();
   wakeTime = millis();
 
   if (!btnPressed) {
@@ -244,7 +261,7 @@ void setupButton() {
     } else if (globalState == DOOR_DASH_WINNER) {
       // Broadcast repeatedly who the winner is
       if (millis() - lastBroadcast > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
-        sendWinner(winnerMac);
+        sendWinner((uint8_t *)winnerMac);
         lastBroadcast = millis();
       }
       // Flash LED fast
@@ -262,7 +279,7 @@ void setupButton() {
     } else if (globalState == DOOR_DASH_LOSER) {
       // Broadcast repeatedly who the winner is
       if (millis() - lastBroadcast > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
-        sendWinner(winnerMac);
+        sendWinner((uint8_t *)winnerMac);
         lastBroadcast = millis();
       }
       digitalWrite(BUTTON_LED, HIGH);
@@ -282,7 +299,7 @@ void setupButton() {
 
 void setupCoordinator() {
   setupSerial();
-  Radio_Init(coordinatorCallBackFunction);
+  Radio_Init();
 
   while (true) {
     callWatchdog();
@@ -296,15 +313,6 @@ void setupCoordinator() {
 }
 
 void loop() { Serial.println("ERROR, this should never run"); }
-
-bool hasWinnerMsg(DataStruct data) {
-  for (int i = 0; i < 6; i++) {
-    if (data.winner_mac[i] != 0) {
-      return true;
-    }
-  }
-  return false;
-}
 
 void setup() {
   if (IS_COORDINATOR) {
