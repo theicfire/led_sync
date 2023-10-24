@@ -16,7 +16,7 @@ const int WIFI_CHANNEL = 4;
 const int BUTTON_INPUT = D1;
 const int BUTTON_LED = D2;
 
-const bool IS_COORDINATOR = false; // True for only one device
+const bool IS_COORDINATOR = true; // True for only one device
 
 uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF,
                           0xFF, 0xFF, 0xFF}; // NULL means send to all peers
@@ -26,7 +26,9 @@ enum States_t {
   DOOR_DASH_WAITING = 2,
   DOOR_DASH_WINNER = 3,
   DOOR_DASH_LOSER = 4,
-  DOOR_DASH_COOL_DOWN = 5
+  DOOR_DASH_COOL_DOWN_WINNER = 5,
+  DOOR_DASH_COOL_DOWN_LOSER = 6,
+  DOOR_DASH_COOL_DOWN_UNKNOWN = 7,
 } States;
 States_t globalState = SLEEP_LISTEN;
 
@@ -110,8 +112,14 @@ void transitionState(States_t newState) {
   case DOOR_DASH_LOSER:
     Serial.println("Transitioned to DOOR_DASH_LOSER");
     break;
-  case DOOR_DASH_COOL_DOWN:
-    Serial.println("Transitioned to DOOR_DASH_COOL_DOWN");
+  case DOOR_DASH_COOL_DOWN_WINNER:
+    Serial.println("Transitioned to DOOR_DASH_COOL_DOWN_WINNER");
+    break;
+  case DOOR_DASH_COOL_DOWN_LOSER:
+    Serial.println("Transitioned to DOOR_DASH_COOL_DOWN_LOSER");
+    break;
+  case DOOR_DASH_COOL_DOWN_UNKNOWN:
+    Serial.println("Transitioned to DOOR_DASH_COOL_DOWN_UNKNOWN");
     break;
   default:
     Serial.println("Transitioned to ERROR, unknown state");
@@ -160,8 +168,6 @@ bool isMacAddressSelf(uint8_t *mac) {
 
 void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
                                  uint8_t len) {
-  rebroadcast(incomingData, len); // Could be optimized to only rebroadcast M2s
-
   DataStruct *data = (DataStruct *)incomingData;
   if (!hasDeclaredWinner) {
     Serial.print("Declare winner: ");
@@ -171,6 +177,10 @@ void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
 
     doorDashStartedAt = millis();
     hasDeclaredWinner = true;
+  }
+
+  if (hasDeclaredWinner) {
+    sendWinner((uint8_t *)winnerMac);
   }
 }
 
@@ -233,12 +243,27 @@ void Radio_Init() {
   }
 }
 
+void ledWinner() {
+  // Flash LED fast
+  if ((millis() - doorDashStartedAt) %
+          (DOOR_DASH_WINNER_FLASH_FREQUENCY__ms * 2) <
+      DOOR_DASH_WINNER_FLASH_FREQUENCY__ms) {
+    digitalWrite(BUTTON_LED, HIGH);
+  } else {
+    digitalWrite(BUTTON_LED, LOW);
+  }
+}
+
+void ledLoser() { digitalWrite(BUTTON_LED, HIGH); }
+
 void setupButton() {
   pinMode(BUTTON_INPUT, INPUT);
   bool btnPressed = digitalRead(BUTTON_INPUT);
   setupSerial();
   Radio_Init();
   wakeTime = millis();
+
+  pinMode(BUTTON_LED, OUTPUT);
 
   if (!btnPressed) {
     // Wait for a message to have been received
@@ -269,9 +294,9 @@ void setupButton() {
       if ((millis() - doorDashStartedAt) %
               (DOOR_DASH_WAITING_FLASH_FREQUENCY__ms * 2) <
           DOOR_DASH_WAITING_FLASH_FREQUENCY__ms) {
-        digitalWrite(BUTTON_LED, LOW);
-      } else {
         digitalWrite(BUTTON_LED, HIGH);
+      } else {
+        digitalWrite(BUTTON_LED, LOW);
       }
       // Rebroadcast button pressed every 20ms
       if (millis() - lastBroadcast > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
@@ -279,8 +304,10 @@ void setupButton() {
         lastBroadcast = millis();
       }
       // If more than 20 seconds have passed, then go to sleep
-      if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
-        goToSleep();
+      if (millis() - doorDashStartedAt >
+          FLASH_DURATION__ms) { // Should theoretically never happen as long as
+                                // the coordinator does its job.
+        globalState = DOOR_DASH_COOL_DOWN_UNKNOWN;
       }
     } else if (globalState == DOOR_DASH_WINNER) {
       // Broadcast repeatedly who the winner is
@@ -288,17 +315,10 @@ void setupButton() {
         sendWinner((uint8_t *)winnerMac);
         lastBroadcast = millis();
       }
-      // Flash LED fast
-      if ((millis() - doorDashStartedAt) %
-              (DOOR_DASH_WINNER_FLASH_FREQUENCY__ms * 2) <
-          DOOR_DASH_WINNER_FLASH_FREQUENCY__ms) {
-        digitalWrite(BUTTON_LED, HIGH);
-      } else {
-        digitalWrite(BUTTON_LED, LOW);
-      }
+      ledWinner();
       // If more than 5 seconds have passed, go to cool down state
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms) {
-        transitionState(DOOR_DASH_COOL_DOWN);
+        transitionState(DOOR_DASH_COOL_DOWN_WINNER);
       }
     } else if (globalState == DOOR_DASH_LOSER) {
       // Broadcast repeatedly who the winner is
@@ -306,12 +326,25 @@ void setupButton() {
         sendWinner((uint8_t *)winnerMac);
         lastBroadcast = millis();
       }
-      digitalWrite(BUTTON_LED, HIGH);
+      ledLoser();
       // If more than 5 seconds have passed, go to cool down state
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms) {
-        transitionState(DOOR_DASH_COOL_DOWN);
+        transitionState(DOOR_DASH_COOL_DOWN_LOSER);
       }
-    } else { // DOOR_DASH_COOL_DOWN
+    } else if (globalState == DOOR_DASH_COOL_DOWN_WINNER) {
+      ledWinner();
+      // Sleep after cool down period is over
+      if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
+        goToSleep();
+      }
+    } else if (globalState == DOOR_DASH_COOL_DOWN_WINNER) {
+      ledLoser();
+      // Sleep after cool down period is over
+      if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
+        goToSleep();
+      }
+    } else { // DOOR_DASH_COOL_DOWN_UNKNOWN
+      Serial.println("ERROR, should not hit this");
       // Sleep after cool down period is over
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
         goToSleep();
