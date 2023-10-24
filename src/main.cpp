@@ -5,7 +5,7 @@
 
 // Derives from https://github.com/HarringayMakerSpace/ESP-Now
 #include <ESP8266WiFi.h>
-#include <_types/_uint8_t.h>
+
 #include <ios>
 extern "C" {
 #include <espnow.h>
@@ -39,6 +39,19 @@ const unsigned long DOOR_DASH_COORDINATION_DURATION__ms = 17e3;
 const unsigned long FLASH_DURATION__ms = 5e3;
 const unsigned long COOL_DOWN__ms = 15e3;
 
+unsigned long wakeTime = 0;
+unsigned long doorDashStartedAt = 0;
+bool hasDeclaredWinner = false;
+uint8_t winnerMac[6] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
+
+struct __attribute__((packed)) DataStruct {
+  // Device sending to master that the device's button was pressed
+  uint8_t button_pressed_mac[6]; // M1
+
+  // Master sends a message to everyone about who the winner
+  uint8_t winner_mac[6]; // M2
+};
+
 /* While the capacitor is charged, the button will not be able to reset the
  * ESP*/
 void keepCapacitorCharged() {
@@ -54,6 +67,14 @@ void dischargeCapacitor() {
   delay(5);
 }
 
+void waitForSerial() {
+  while (!Serial) {
+    delay(1);
+  }
+}
+
+void callWatchdog() { yield(); }
+
 void setupSerial() {
   Serial.begin(115200);
   waitForSerial();
@@ -65,10 +86,62 @@ void transitionState(States_t newState) {
   Serial.printf("Transitioning to state %i\n", newState);
 }
 
-void waitForSerial() {
-  while (!Serial) {
-    delay(1);
+void printMac(uint8_t *macaddr) {
+  for (byte n = 0; n < 6; n++) {
+    Serial.print(macaddr[n], HEX);
   }
+}
+
+void sendButtonPressed() {
+  DataStruct sendingData = {};
+  sendingData.button_pressed_mac = WiFi.macAddress();
+  esp_now_send(broadcastMac, (uint8_t *)sendingData,
+               sizeof(sendingData)); // NULL means send to all peers
+}
+
+void sendWinner(uint8_t[6] winner) {
+  DataStruct sendingData = {};
+  sendingData.winner_mac = winner;
+  esp_now_send(broadcastMac, (uint8_t *)sendingData,
+               sizeof(sendingData)); // NULL means send to all peers
+}
+
+// Only master sends this
+void sendWinnerSelected(uint8_t[] winnerMac) {
+  DataStruct sendingData = {};
+  sendingData.winner_mac = winnerMac;
+  esp_now_send(broadcastMac, (uint8_t *)sendingData, sizeof(sendingData));
+}
+
+void rebroadcast(DataStruct *data) {
+  esp_now_send(broadcastMac, (uint8_t *)data, sizeof(data));
+}
+
+void Radio_Init(std::function<void(uint8_t *, uint8_t *, uint8_t)>
+                    receiveCallBackFunction) {
+  if (esp_now_init() != 0) {
+    Serial.println("*** ESP_Now init failed");
+    while (true) {
+    };
+  }
+  // role set to COMBO so it can send and receive - not sure this is essential
+  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
+
+  Serial.println("Starting Master");
+
+  WiFi.mode(WIFI_STA); // Station mode for esp-now controller
+
+  Serial.printf("This mac: %s, ", WiFi.macAddress().c_str());
+  Serial.printf("target mac: %02x%02x%02x%02x%02x%02x", broadcastMac[0],
+                broadcastMac[1], broadcastMac[2], broadcastMac[3],
+                broadcastMac[4], broadcastMac[5]);
+  Serial.printf(", channel: %i\n", WIFI_CHANNEL);
+
+  esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
+
+  Serial.println("Setup finished");
+
+  esp_now_register_recv_cb(receiveCallBackFunction);
 }
 
 bool isMacAddressSelf(uint8_t *mac) {
@@ -81,16 +154,42 @@ bool isMacAddressSelf(uint8_t *mac) {
   return true;
 }
 
-unsigned long wakeTime = 0;
-unsigned long doorDashStartedAt = 0;
-bool hasDeclaredWinner = false;
-uint8_t winnerMac[6] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
+void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
+                                 uint8_t len) {
+  rebroadcast(&incomingData); // Could be optimized to only rebroadcast M2s
 
-void setup() {
-  if (IS_COORDINATOR) {
-    setupCoordinator();
-  } else {
-    setupButton();
+  if (!hasDeclaredWinner) {
+    Serial.print("Declare winner: ");
+    printMac(incomingData.button_pressed_mac);
+    winnerMac = incomingData.button_pressed_mac;
+    doorDashStartedAt = millis();
+    hasDeclaredWinner = true;
+  }
+}
+
+void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
+                            uint8_t len) {
+
+  // Handle state changes, and rebroadcasting
+  if (hasWinnerMsg(incomingData)) { // M2 message
+    if (globalState == SLEEP_LISTEN || globalState == DOOR_DASH_WAITING) {
+      winnerMac = incomingData.winner_mac;
+      if isMacAddressSelf (incomingData.winner_mac) {
+        transitionState(DOOR_DASH_WINNER);
+      } else {
+        transitionState(DOOR_DASH_LOSER);
+      }
+      rebroadcast(&incomingData);
+    }
+  } else { // M1 message
+    if (globalState == SLEEP_LISTEN) {
+      transitionState(DOOR_DASH_WAITING);
+      rebroadcast(&incomingData);
+    }
+  }
+  if (doorDashStartedAt == 0) {
+    // Gets reset after the button goes to sleep
+    doorDashStartedAt = millis();
   }
 }
 
@@ -123,6 +222,7 @@ void setupButton() {
 
   unsigned long lastBroadcast = 0;
   while (true) {
+    callWatchdog();
     if (globalState == DOOR_DASH_WAITING) {
       // Slowly flash LED
       if ((millis() - doorDashStartedAt) %
@@ -185,6 +285,7 @@ void setupCoordinator() {
   Radio_Init(coordinatorCallBackFunction);
 
   while (true) {
+    callWatchdog();
     if (hasDeclaredWinner &&
         millis() - doorDashStartedAt > DOOR_DASH_COORDINATION_DURATION__ms) {
       Serial.println("Resetting after doordash");
@@ -196,14 +297,6 @@ void setupCoordinator() {
 
 void loop() { Serial.println("ERROR, this should never run"); }
 
-struct __attribute__((packed)) DataStruct {
-  // Device sending to master that the device's button was pressed
-  uint8_t button_pressed_mac[6]; // M1
-
-  // Master sends a message to everyone about who the winner
-  uint8_t winner_mac[6]; // M2
-};
-
 bool hasWinnerMsg(DataStruct data) {
   for (int i = 0; i < 6; i++) {
     if (data.winner_mac[i] != 0) {
@@ -213,99 +306,10 @@ bool hasWinnerMsg(DataStruct data) {
   return false;
 }
 
-void sendButtonPressed() {
-  DataStruct sendingData = {};
-  sendingData.button_pressed_mac = WiFi.macAddress();
-  esp_now_send(broadcastMac, (uint8_t *)sendingData,
-               sizeof(sendingData)); // NULL means send to all peers
-}
-
-void sendWinner(uint8_t[6] winner) {
-  DataStruct sendingData = {};
-  sendingData.winner_mac = winner;
-  esp_now_send(broadcastMac, (uint8_t *)sendingData,
-               sizeof(sendingData)); // NULL means send to all peers
-}
-
-// Only master sends this
-void sendWinnerSelected(uint8_t[] winnerMac) {
-  DataStruct sendingData = {};
-  sendingData.winner_mac = winnerMac;
-  esp_now_send(broadcastMac, (uint8_t *)sendingData, sizeof(sendingData));
-}
-
-void rebroadcast(DataStruct *data) {
-  esp_now_send(broadcastMac, (uint8_t *)data, sizeof(data));
-}
-
-void coordinatorCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
-                                 uint8_t len) {
-  rebroadcast(&incomingData); // Could be optimized to only rebroadcast M2s
-
-  if (!hasDeclaredWinner) {
-    Serial.print("Declare winner: ");
-    printMac(incomingData.button_pressed_mac);
-    winnerMac = incomingData.button_pressed_mac;
-    doorDashStartedAt = millis();
-    hasDeclaredWinner = true;
+void setup() {
+  if (IS_COORDINATOR) {
+    setupCoordinator();
+  } else {
+    setupButton();
   }
-}
-
-void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
-                            uint8_t len) {
-
-  // Handle state changes, and rebroadcasting
-  if (hasWinnerMsg(incomingData)) { // M2 message
-    if (globalState == SLEEP_LISTEN || globalState == DOOR_DASH_WAITING) {
-      winnerMac = incomingData.winner_mac;
-      if isMacAddressSelf (incomingData.winner_mac) {
-        transitionState(DOOR_DASH_WINNER);
-      } else {
-        transitionState(DOOR_DASH_LOSER);
-      }
-      rebroadcast(&incomingData);
-    }
-  } else { // M1 message
-    if (globalState == SLEEP_LISTEN) {
-      transitionState(DOOR_DASH_WAITING);
-      rebroadcast(&incomingData);
-    }
-  }
-  if (doorDashStartedAt == 0) {
-    // Gets reset after the button goes to sleep
-    doorDashStartedAt = millis();
-  }
-}
-
-void printMac(uint8_t *macaddr) {
-  for (byte n = 0; n < 6; n++) {
-    Serial.print(macaddr[n], HEX);
-  }
-}
-
-void Radio_Init(std::function<void(uint8_t *, uint8_t *, uint8_t)>
-                    receiveCallBackFunction) {
-  if (esp_now_init() != 0) {
-    Serial.println("*** ESP_Now init failed");
-    while (true) {
-    };
-  }
-  // role set to COMBO so it can send and receive - not sure this is essential
-  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-
-  Serial.println("Starting Master");
-
-  WiFi.mode(WIFI_STA); // Station mode for esp-now controller
-
-  Serial.printf("This mac: %s, ", WiFi.macAddress().c_str());
-  Serial.printf("target mac: %02x%02x%02x%02x%02x%02x", broadcastMac[0],
-                broadcastMac[1], broadcastMac[2], broadcastMac[3],
-                broadcastMac[4], broadcastMac[5]);
-  Serial.printf(", channel: %i\n", WIFI_CHANNEL);
-
-  esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
-
-  Serial.println("Setup finished");
-
-  esp_now_register_recv_cb(receiveCallBackFunction);
 }
