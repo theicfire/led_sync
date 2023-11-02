@@ -254,6 +254,17 @@ void ledWinner() {
   }
 }
 
+void ledUnknown() {
+  // Slowly flash LED
+  if ((millis() - doorDashStartedAt) %
+          (DOOR_DASH_WAITING_FLASH_FREQUENCY__ms * 2) <
+      DOOR_DASH_WAITING_FLASH_FREQUENCY__ms) {
+    digitalWrite(BUTTON_LED, HIGH);
+  } else {
+    digitalWrite(BUTTON_LED, LOW);
+  }
+}
+
 void ledLoser() { digitalWrite(BUTTON_LED, HIGH); }
 
 void setupButton() {
@@ -294,14 +305,7 @@ void setupButton() {
   while (true) {
     callWatchdog();
     if (globalState == DOOR_DASH_WAITING) {
-      // Slowly flash LED
-      if ((millis() - doorDashStartedAt) %
-              (DOOR_DASH_WAITING_FLASH_FREQUENCY__ms * 2) <
-          DOOR_DASH_WAITING_FLASH_FREQUENCY__ms) {
-        digitalWrite(BUTTON_LED, HIGH);
-      } else {
-        digitalWrite(BUTTON_LED, LOW);
-      }
+      ledUnknown();
       // Rebroadcast button pressed every 20ms
       if (millis() - lastBroadcast > DOOR_DASH_REBROADCAST_INTERVAL__ms) {
         sendButtonPressed();
@@ -349,6 +353,8 @@ void setupButton() {
         goToSleep();
       }
     } else { // DOOR_DASH_COOL_DOWN_UNKNOWN
+      ledUnknown();
+
       // Sleep after cool down period is over
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
         goToSleep();
