@@ -232,13 +232,13 @@ void Radio_Init() {
 
   esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, WIFI_CHANNEL, NULL, 0);
 
-  Serial.println("Setup finished");
-
   // TODO consider bringing back receiveCallBackFunction so that IS_COORDINATOR
   // is not checked twice
   if (IS_COORDINATOR) {
+    Serial.println("Setup finished for coordinator");
     esp_now_register_recv_cb(coordinatorCallBackFunction);
   } else {
+    Serial.println("Setup finished for button");
     esp_now_register_recv_cb(buttonCallBackFunction);
   }
 }
@@ -266,9 +266,13 @@ void setupButton() {
   pinMode(BUTTON_LED, OUTPUT);
 
   if (!btnPressed) {
-    // Wait for a message to have been received
-    while (millis() - wakeTime < LISTEN_TIME__ms) {
-    }
+    // Wait for a message to have been received. Warning: while(true) loop won't
+    // work here because we won't receive an ESP_NOW message callback. It's
+    // unclear why -- at startup, it seems we need to wait some time with delay
+    // for the setup to happen. Maybe there's some async setup that gets stuck
+    // if we have a while(true) loop here. After this line, while (true) loops
+    // are fine.
+    delay(50);
 
     if (globalState == SLEEP_LISTEN) {
       Serial.println("Back to sleep");
@@ -337,7 +341,7 @@ void setupButton() {
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
         goToSleep();
       }
-    } else if (globalState == DOOR_DASH_COOL_DOWN_WINNER) {
+    } else if (globalState == DOOR_DASH_COOL_DOWN_LOSER) {
       ledLoser();
       // Sleep after cool down period is over
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
