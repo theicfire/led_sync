@@ -48,10 +48,10 @@ uint8_t winnerMac[6] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
 
 struct __attribute__((packed)) DataStruct {
   // Device sending to master that the device's button was pressed
-  uint8_t button_pressed_mac[6]; // M1
+  uint8_t button_pressed_mac[6]; // PRESSED_MSG
 
   // Master sends a message to everyone about who the winner
-  uint8_t winner_mac[6]; // M2
+  uint8_t winner_mac[6]; // WINNER_MSG
 };
 
 /* While the capacitor is charged, the button will not be able to reset the
@@ -73,7 +73,7 @@ void goToSleep() {
   ESP.deepSleep(SLEEP_DURATION__us);
 }
 
-bool hasWinnerMsg(DataStruct *data) {
+bool isWinnerMsg(DataStruct *data) {
   for (int i = 0; i < 6; i++) {
     if (data->winner_mac[i] != 0) {
       return true;
@@ -189,7 +189,7 @@ void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
 
   DataStruct *data = (DataStruct *)incomingData;
   // Handle state changes, and rebroadcasting
-  if (hasWinnerMsg(data)) { // M2 message
+  if (isWinnerMsg(data)) { // WINNER_MSG
     if (globalState == SLEEP_LISTEN || globalState == DOOR_DASH_WAITING) {
       memcpy(winnerMac, data->winner_mac, 6);
       if (isMacAddressSelf(data->winner_mac)) {
@@ -200,7 +200,7 @@ void buttonCallBackFunction(uint8_t *senderMac, uint8_t *incomingData,
 
       rebroadcast(incomingData, len);
     }
-  } else { // M1 message
+  } else { // PRESSED_MSG
     if (globalState == SLEEP_LISTEN) {
       transitionState(DOOR_DASH_WAITING);
 
@@ -307,10 +307,11 @@ void setupButton() {
         sendButtonPressed();
         lastBroadcast = millis();
       }
-      // If more than 20 seconds have passed, then go to sleep
+      // If more than FLASH_DURATION__ms has passed, cool down
       if (millis() - doorDashStartedAt >
           FLASH_DURATION__ms) { // Should theoretically never happen as long as
                                 // the coordinator does its job.
+        Serial.println("ERROR, never received a WINNER_MSG before cooldown");
         globalState = DOOR_DASH_COOL_DOWN_UNKNOWN;
       }
     } else if (globalState == DOOR_DASH_WINNER) {
@@ -348,7 +349,6 @@ void setupButton() {
         goToSleep();
       }
     } else { // DOOR_DASH_COOL_DOWN_UNKNOWN
-      Serial.println("ERROR, should not hit this");
       // Sleep after cool down period is over
       if (millis() - doorDashStartedAt > FLASH_DURATION__ms + COOL_DOWN__ms) {
         goToSleep();
