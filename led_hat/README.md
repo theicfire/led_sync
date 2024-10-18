@@ -1,6 +1,8 @@
 # Synced LED Strips
 This uses the ESP NOW library to synchronize LED strips. The algorithm is as follows: Every N seconds, a microcontroller sends out its current time, mod 100 seconds. Whenever a module hears of this broadcasted message, it sets its time to the average of what it received and its own local time. It immediately broadcasts its new averaged time if the two times were too far apart. This allows the modules to quickly synchronize their times.
 
+Fun note: This algorithm was inspired by how some fireflies in SouthEast Asia synchronize their light flashes. See https://ncase.me/fireflies for a delightful demonstartion of this.
+
 # Hardware
 All that's required is one ESP8266 module (NodeMCU v1.0 or WeMOS D1 Mini were tested), a USB power bank, a WS2812B LED strip, and some connectors. You'll need two or more sets of these to have them communicate.
 
